@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CimianRun {
+  id        String   @id @default(uuid())
+  device    String
+  ts        DateTime @db.Timestamptz
+  exitCode  Int
+  duration  Int
+  details   String?
+  @@index([ts])
+}
+
+model Event {
+  id      String   @id
+  device  String
+  kind    String
+  ts      DateTime @db.Timestamptz
+  payload Json
+  @@index([kind, ts])
+}

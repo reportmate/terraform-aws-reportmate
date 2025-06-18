@@ -1,0 +1,17 @@
+{
+  "name": "@seemianki/database",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "6.9.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.9.0"
+  }
+}
