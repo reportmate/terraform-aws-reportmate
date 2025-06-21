@@ -13,6 +13,7 @@ yarn-error.log*
 
 # Next.js
 apps/www/.next/
+apps/www/out/
 
 # Prisma – keep migrations, ignore local studio dbs if you use them
 *.sqlite
@@ -85,6 +86,7 @@ jspm_packages/
 *.swp
 *.swo
 *~
+functions/extensions.csproj
 
 # OS generated files
 .DS_Store

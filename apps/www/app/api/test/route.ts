@@ -32,26 +32,18 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body)
     })
     
-    // Forward to Azure Function
-    const response = await fetch('https://seemianki-api.azurewebsites.net/api/ingest', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body)
-    })
-    
-    if (response.ok) {
+    // Always return success for local testing, don't require Azure
+    if (localStoreResponse.ok) {
       return NextResponse.json({ 
         success: true, 
-        message: "Event sent successfully",
-        storedLocally: localStoreResponse.ok
+        message: "Event sent successfully (local only)",
+        storedLocally: true
       })
     } else {
       return NextResponse.json({ 
         success: false, 
-        error: `Azure function returned ${response.status}` 
-      }, { status: response.status })
+        error: "Failed to store event locally" 
+      }, { status: 500 })
     }
   } catch (error) {
     return NextResponse.json({

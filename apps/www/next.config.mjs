@@ -1,14 +1,16 @@
 /** @type {import("next").NextConfig} */
 export default {
-  // Production configuration for static deployment
-  output: 'export',
-  trailingSlash: true,
-  skipTrailingSlashRedirect: true,
-  distDir: 'out',
+  // Only use static export in production builds
+  ...(process.env.NODE_ENV === 'production' && {
+    output: 'export',
+    trailingSlash: true,
+    skipTrailingSlashRedirect: true,
+    distDir: 'out',
+  }),
   
   // Disable image optimization for static export
   images: {
-    unoptimized: true
+    unoptimized: process.env.NODE_ENV === 'production'
   },
   
   // Environment variables

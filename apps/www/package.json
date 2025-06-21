@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "demo": "node scripts/demo-data.js",
+    "demo:fast": "node scripts/demo-data.js 20 1000",
+    "demo:slow": "node scripts/demo-data.js 5 5000"
   },
   "keywords": [],
   "author": "",
@@ -16,19 +19,19 @@
   "packageManager": "pnpm@10.8.1",
   "dependencies": {
     "@microsoft/signalr": "^8.0.7",
-    "@tailwindcss/postcss": "^4.1.10",
-    "autoprefixer": "^10.4.21",
     "next": "15",
-    "postcss": "^8.5.6",
     "react": "18",
-    "react-dom": "18",
-    "tailwindcss": "^4.1.10"
+    "react-dom": "18"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.10",
     "@types/node": "^24.0.3",
     "@types/react": "^19.1.8",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3"
   }
 }

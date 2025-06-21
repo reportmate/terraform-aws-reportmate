@@ -1,0 +1,146 @@
+# Azure DevOps CI/CD Pipeline for Seemianki Dashboard
+# Deploys infrastructure via Terraform and applications to Azure
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  vmImageName: 'ubuntu-latest'
+  azureSubscription: 'your-service-connection-name' # Update this
+  functionAppName: 'seemianki-api'
+  terraformBackendResourceGroup: 'tfstate-rg'
+  terraformBackendStorageAccount: 'tfstatestorage'
+  terraformBackendContainerName: 'tfstate'
+  terraformBackendKey: 'seemianki.tfstate'
+
+stages:
+  # Build Stage
+  - stage: Build
+    displayName: 'Build Applications'
+    jobs:
+      - job: BuildApps
+        displayName: 'Build Dashboard and Functions'
+        pool:
+          vmImage: $(vmImageName)
+        
+        steps:
+          - task: NodeTool@0
+            displayName: 'Setup Node.js'
+            inputs:
+              versionSpec: '18.x'
+          
+          - script: |
+              npm install -g pnpm
+              cd apps/www
+              pnpm install
+              pnpm run build
+            displayName: 'Build Next.js Dashboard'
+          
+          - task: UsePythonVersion@0
+            displayName: 'Setup Python'
+            inputs:
+              versionSpec: '3.11'
+              addToPath: true
+          
+          - script: |
+              cd functions
+              pip install -r requirements.txt
+            displayName: 'Install Function Dependencies'
+          
+          - task: ArchiveFiles@2
+            displayName: 'Archive Dashboard'
+            inputs:
+              rootFolderOrFile: 'apps/www'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/dashboard.zip'
+          
+          - task: ArchiveFiles@2
+            displayName: 'Archive Functions'
+            inputs:
+              rootFolderOrFile: 'functions'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/functions.zip'
+          
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Artifacts'
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'drop'
+
+  # Infrastructure Stage  
+  - stage: Infrastructure
+    displayName: 'Deploy Infrastructure'
+    dependsOn: Build
+    jobs:
+      - deployment: DeployInfra
+        displayName: 'Deploy Terraform'
+        pool:
+          vmImage: $(vmImageName)
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    # Install Terraform
+                    wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+                    sudo apt update && sudo apt install terraform
+                  displayName: 'Install Terraform'
+                
+                - task: AzureCLI@2
+                  displayName: 'Deploy Infrastructure'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      cd infrastructure
+                      
+                      # Initialize Terraform
+                      terraform init \
+                        -backend-config="resource_group_name=$(terraformBackendResourceGroup)" \
+                        -backend-config="storage_account_name=$(terraformBackendStorageAccount)" \
+                        -backend-config="container_name=$(terraformBackendContainerName)" \
+                        -backend-config="key=$(terraformBackendKey)"
+                      
+                      # Validate and apply
+                      terraform validate
+                      terraform plan -var="db_password=$(DB_PASSWORD)" -out=tfplan
+                      terraform apply -auto-approve tfplan
+
+  # Deploy Applications
+  - stage: Deploy
+    displayName: 'Deploy Applications'
+    dependsOn: Infrastructure
+    jobs:
+      - deployment: DeployApps
+        displayName: 'Deploy Functions and Dashboard'
+        pool:
+          vmImage: $(vmImageName)
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@0
+                  displayName: 'Download Artifacts'
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'single'
+                    artifactName: 'drop'
+                    downloadPath: '$(System.ArtifactsDirectory)'
+                
+                - task: AzureFunctionApp@1
+                  displayName: 'Deploy Functions'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    appType: 'functionAppLinux'
+                    appName: $(functionAppName)
+                    package: '$(System.ArtifactsDirectory)/drop/functions.zip'
+                    runtimeStack: 'PYTHON|3.11'
