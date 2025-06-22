@@ -14,7 +14,14 @@ export interface FleetEvent {
 export function useLiveEvents() {
   const [events, setEvents] = useState<FleetEvent[]>([])
   const [connectionStatus, setConnectionStatus] = useState<string>("connecting")
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure we're mounted before showing time-dependent data
+  useEffect(() => {
+    setMounted(true)
+    setLastUpdateTime(new Date())
+  }, [])
 
   // Function to fetch events from local API
   const fetchLocalEvents = useCallback(async () => {
@@ -194,6 +201,7 @@ export function useLiveEvents() {
     events, 
     connectionStatus,
     lastUpdateTime,
+    mounted,
     addEvent: (event: FleetEvent) => {
       setEvents(prev => [event, ...prev].slice(-100))
       setLastUpdateTime(new Date())

@@ -16,26 +16,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var isDark = localStorage.theme === 'dark' || 
-                    (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                  
-                  if (isDark) {
-                    document.documentElement.classList.add('dark');
-                  }
-                } catch (e) {
-                  // Silently fail - will be handled by client-side hydration
-                }
-              })();
-            `,
-          }}
-        />
-      </head>
       <body className={`${inter.className} h-full antialiased bg-white dark:bg-black transition-colors duration-200`} suppressHydrationWarning>
         {children}
       </body>

@@ -1,75 +1,72 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useLiveEvents } from "./hooks"
 import { formatRelativeTime, formatExactTime } from "../../src/lib/time"
 
-// Dark mode toggle component
-function DarkModeToggle() {
-  const [isDark, setIsDark] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-    // Check the stored theme preference
-    const stored = localStorage.getItem('theme')
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = stored === 'dark' || (!stored && systemPrefersDark)
-    
-    setIsDark(shouldBeDark)
-    
-    // Ensure the class matches the state
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }, [])
-  
-  const toggleDarkMode = () => {
-    const newMode = !isDark
-    setIsDark(newMode)
-    
-    if (newMode) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    }
-  }
-  
-  // Render a placeholder during hydration to avoid mismatch
-  if (!mounted) {
-    return (
-      <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
-        <div className="w-5 h-5 bg-gray-300 dark:bg-gray-600 rounded animate-pulse" />
-      </div>
-    )
-  }
-  
-  return (
-    <button
-      onClick={toggleDarkMode}
-      className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 transition-colors duration-200"
-      aria-label="Toggle dark mode"
-    >
-      {isDark ? (
-        <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-        </svg>
-      ) : (
-        <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-        </svg>
-      )}
-    </button>
-  )
+interface Device {
+  id: string
+  name: string
+  model?: string
+  os?: string
+  lastSeen: string
+  status: 'online' | 'offline' | 'warning' | 'error'
+  uptime?: string
+  location?: string
+  serialNumber?: string
+  ipAddress?: string
+  totalEvents: number
+  lastEventTime: string
 }
 
 export default function DashboardPage() {
-  const { events, connectionStatus, lastUpdateTime, addEvent } = useLiveEvents()
+  const { events, connectionStatus, lastUpdateTime, mounted, addEvent } = useLiveEvents()
   const [timeUpdateCounter, setTimeUpdateCounter] = useState(0)
+  const [devices, setDevices] = useState<Device[]>([])
+  const [devicesLoading, setDevicesLoading] = useState(true)
+  const [deviceNameMap, setDeviceNameMap] = useState<Record<string, string>>({})
+
+  // Create device name mapping function
+  const getDeviceName = (deviceId: string) => {
+    return deviceNameMap[deviceId] || deviceId
+  }
+
+  // Fetch devices data
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        const response = await fetch('/api/device')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.devices) {
+            // Sort devices by lastSeen descending (newest first)
+            const sortedDevices = data.devices.sort((a: Device, b: Device) => 
+              new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+            )
+            setDevices(sortedDevices)
+            
+            // Build device name mapping (serial -> name)
+            const nameMap: Record<string, string> = {}
+            data.devices.forEach((device: Device) => {
+              if (device.serialNumber && device.name) {
+                nameMap[device.serialNumber] = device.name
+              }
+              // Also map by ID in case that's used
+              nameMap[device.id] = device.name
+            })
+            setDeviceNameMap(nameMap)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch devices:', error)
+      } finally {
+        setDevicesLoading(false)
+      }
+    }
+
+    fetchDevices()
+  }, [])
 
   // Update relative times every 30 seconds
   useEffect(() => {
@@ -78,47 +75,6 @@ export default function DashboardPage() {
     }, 30000)
     return () => clearInterval(interval)
   }, [])
-
-  const sendTestEvent = async () => {
-    try {
-      const testEvent = {
-        device: `test-device-${Math.floor(Math.random() * 1000)}`,
-        kind: ["error", "warning", "success", "info", "system"][Math.floor(Math.random() * 5)],
-        payload: {
-          message: "Test event from dashboard",
-          timestamp: new Date().toISOString(),
-          user: "dashboard-user",
-          region: ["us-west-2", "us-east-1", "eu-west-1"][Math.floor(Math.random() * 3)]
-        }
-      }
-
-      const response = await fetch('/api/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testEvent)
-      })
-
-      if (response.ok) {
-        console.log("✅ Test event sent")
-        addEvent({
-          id: `confirm-${Date.now()}`,
-          device: "dashboard",
-          kind: "success",
-          ts: new Date().toISOString(),
-          payload: { message: "Test event sent successfully", status: "confirmed" }
-        })
-      }
-    } catch (error) {
-      console.error("❌ Failed to send test event:", error)
-      addEvent({
-        id: `error-${Date.now()}`,
-        device: "dashboard",
-        kind: "error",
-        ts: new Date().toISOString(),
-        payload: { message: "Failed to send test event", error: String(error) }
-      })
-    }
-  }
 
   // Calculate stats
   const stats = {
@@ -173,7 +129,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div>
@@ -185,29 +142,17 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
-              
-              {/* Status indicator */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+            </div>
+            
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              {/* Connection status */}
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
                 <div className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`}></div>
                 <span className={`text-sm font-medium ${status.color}`}>
                   {status.text}
                 </span>
               </div>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={sendTestEvent}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span className="hidden sm:inline">Send Test Event</span>
-                <span className="sm:hidden">Test</span>
-              </button>
-              <DarkModeToggle />
             </div>
           </div>
         </div>
@@ -215,20 +160,20 @@ export default function DashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.total}
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {devices.length}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Total Events
+                  Devices
                 </p>
               </div>
             </div>
@@ -287,127 +232,193 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {stats.devices}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Devices
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Events Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Recent Events
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Live activity from your fleet
-                </p>
+        {/* Two-column layout: New Clients (1/3) + Events (2/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* New Clients Table - 1/3 width */}
+          <div className="lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      New Clients
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Recently discovered devices
+                    </p>
+                  </div>
+                  <Link
+                    href="/devices/list"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <span>View All</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Last update: {formatRelativeTime(lastUpdateTime.toISOString())}
-              </div>
-            </div>
-          </div>
-          
-          {events.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-2 2m0 0l-2-2m2 2v6" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                No events yet
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Waiting for fleet events to arrive. Send a test event to get started.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Device
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Message
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Time
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {events.slice(0, 50).map((event) => {
-                    const statusConfig = getStatusConfig(event.kind)
+
+              {devicesLoading ? (
+                <div className="py-8 text-center">
+                  <div className="w-6 h-6 mx-auto mb-2 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Loading devices...</p>
+                </div>
+              ) : devices.length === 0 ? (
+                <div className="py-8 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    No devices found
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Devices will appear here when they report in
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                  {devices.slice(0, 8).map((device) => {
+                    const getStatusColor = (status: string) => {
+                      switch (status) {
+                        case 'online': return 'bg-green-500'
+                        case 'warning': return 'bg-yellow-500'
+                        case 'error': return 'bg-red-500'
+                        default: return 'bg-gray-500'
+                      }
+                    }
+
                     return (
-                      <tr 
-                        key={event.id} 
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      <Link
+                        key={device.id}
+                        href={`/device/${device.id}`}
+                        className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${statusConfig.bg}`}>
-                            <div className="w-3 h-3 bg-white rounded-full"></div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {event.device}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusConfig.badge}`}>
-                            {event.kind}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 max-w-md">
-                          <div className="text-sm text-gray-900 dark:text-white truncate">
-                            {typeof event.payload === 'object' && event.payload !== null ? 
-                              (event.payload as any).message || JSON.stringify(event.payload) : 
-                              String(event.payload)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            <div className="font-medium">
-                              {formatRelativeTime(event.ts)}
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${getStatusColor(device.status)} flex-shrink-0`}></div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {device.name}
                             </div>
-                            <div className="text-xs opacity-75" title={formatExactTime(event.ts)}>
-                              {formatExactTime(event.ts)}
+                            <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                              {device.model}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                              {formatRelativeTime(device.lastSeen)}
                             </div>
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                      </Link>
                     )
                   })}
-                </tbody>
-              </table>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Events Table - 2/3 width */}
+          <div className="lg:col-span-2">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Recent Events
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Live activity from your fleet
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Last update: {mounted && lastUpdateTime ? formatRelativeTime(lastUpdateTime.toISOString()) : 'Loading...'}
+                  </div>
+                </div>
+              </div>
+              
+              {events.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-2 2m0 0l-2-2m2 2v6" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    No events yet
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    Waiting for fleet events to arrive. Send a test event to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-20">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Device
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Message
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-32">
+                          Time
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {events.slice(0, 50).map((event) => {
+                        const statusConfig = getStatusConfig(event.kind)
+                        return (
+                          <tr 
+                            key={event.id} 
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusConfig.badge}`}>
+                                {event.kind}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Link
+                                href={`/device/${encodeURIComponent(event.device)}`}
+                                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                              >
+                                {getDeviceName(event.device)}
+                              </Link>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900 dark:text-white truncate max-w-xs">
+                                {typeof event.payload === 'object' && event.payload !== null ? 
+                                  (event.payload as any).message || JSON.stringify(event.payload) : 
+                                  String(event.payload)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                <div className="font-medium">
+                                  {formatRelativeTime(event.ts)}
+                                </div>
+                                <div className="text-xs opacity-75" title={formatExactTime(event.ts)}>
+                                  {formatExactTime(event.ts)}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

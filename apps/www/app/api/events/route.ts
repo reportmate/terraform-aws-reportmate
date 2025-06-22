@@ -4,31 +4,45 @@ import { NextResponse } from 'next/server'
 let recentEvents: Array<Record<string, unknown>> = [
   {
     id: 'demo-1',
-    device: 'server-01',
+    device: 'JY93C5YGGM', // Celeste Martin's MacBook Air
     kind: 'success',
     ts: new Date(Date.now() - 60000).toISOString(),
-    payload: { message: 'System startup completed successfully', status: 'healthy' }
+    payload: { message: 'Creative Suite update completed successfully', app: 'Adobe Photoshop' }
   },
   {
     id: 'demo-2', 
-    device: 'workstation-A',
+    device: 'WS-ACC-001', // Jennifer Davis's Dell OptiPlex
     kind: 'warning',
     ts: new Date(Date.now() - 120000).toISOString(),
     payload: { message: 'Disk space running low (15% remaining)', threshold: '85%' }
   },
   {
     id: 'demo-3',
-    device: 'laptop-001',
-    kind: 'error',
+    device: 'FVFXQ2P3JM', // Alex Chen's MacBook Pro
+    kind: 'info',
     ts: new Date(Date.now() - 180000).toISOString(),
-    payload: { message: 'Authentication service unreachable', service: 'auth-api' }
+    payload: { message: 'Development environment updated', version: 'Node.js 20.10.0' }
   },
   {
     id: 'demo-4',
-    device: 'vehicle-08',
+    device: 'LT-SAL-007', // Marcus Thompson's ThinkPad
     kind: 'info',
     ts: new Date(Date.now() - 240000).toISOString(),
-    payload: { message: 'GPS location updated', lat: 37.7749, lng: -122.4194 }
+    payload: { message: 'CRM sync completed', records: 247 }
+  },
+  {
+    id: 'demo-5',
+    device: 'C02ZK8WVLVDQ', // Sarah Johnson's iMac
+    kind: 'system',
+    ts: new Date(Date.now() - 300000).toISOString(),
+    payload: { message: 'System backup completed', size: '2.4 GB' }
+  },
+  {
+    id: 'demo-6',
+    device: 'WS-IT-003', // Ryan Martinez's HP Workstation
+    kind: 'success',
+    ts: new Date(Date.now() - 420000).toISOString(),
+    payload: { message: 'Network monitoring tools updated', tools: 'Wireshark, nmap' }
   }
 ]
 
