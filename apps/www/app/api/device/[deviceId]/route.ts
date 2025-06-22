@@ -1144,7 +1144,7 @@ export async function GET(
   request: Request,
   { params }: { params: { deviceId: string } }
 ) {
-  const deviceId = params.deviceId
+  const { deviceId } = await params
   
   if (!deviceDatabase[deviceId]) {
     return NextResponse.json({ error: 'Device not found' }, { status: 404 })
@@ -1152,6 +1152,29 @@ export async function GET(
 
   const deviceInfo = deviceDatabase[deviceId]
   const events = eventsDatabase[deviceId] || []
+
+  // Transform managed installs data to match interface
+  if (deviceInfo.managedInstalls && deviceInfo.managedInstalls.packages) {
+    deviceInfo.managedInstalls.packages = deviceInfo.managedInstalls.packages.map((pkg: any, index: number) => ({
+      id: `pkg-${index}`,
+      name: pkg.name,
+      displayName: pkg.name,
+      version: pkg.version,
+      status: pkg.status.toLowerCase().replace(' ', '_'),
+      lastUpdate: pkg.installDate,
+      size: pkg.size && typeof pkg.size === 'string' ? parseInt(pkg.size.replace(/[^\d]/g, '')) : (typeof pkg.size === 'number' ? pkg.size : undefined),
+      type: deviceInfo.managedInstalls.type.toLowerCase(),
+      description: '',
+      publisher: '',
+      category: ''
+    }))
+    
+    // Add summary fields
+    deviceInfo.managedInstalls.totalPackages = deviceInfo.managedInstalls.packages.length
+    deviceInfo.managedInstalls.installed = deviceInfo.managedInstalls.packages.filter((p: any) => p.status === 'installed').length
+    deviceInfo.managedInstalls.pending = deviceInfo.managedInstalls.packages.filter((p: any) => p.status.includes('pending')).length
+    deviceInfo.managedInstalls.failed = deviceInfo.managedInstalls.packages.filter((p: any) => p.status.includes('failed')).length
+  }
 
   return NextResponse.json({
     deviceInfo,
