@@ -1153,6 +1153,97 @@ export async function GET(
   const deviceInfo = deviceDatabase[deviceId]
   const events = eventsDatabase[deviceId] || []
 
+  // Transform applications data to match interface
+  if (deviceInfo.applications && Array.isArray(deviceInfo.applications)) {
+    const applications = {
+      totalApps: deviceInfo.applications.length,
+      installedApps: deviceInfo.applications.map((app: any, index: number) => ({
+        id: app.bundleId || `app-${index}`,
+        name: app.name,
+        displayName: app.name,
+        path: app.path,
+        version: app.version,
+        bundle_version: app.version,
+        last_modified: app.lastOpened ? Math.floor(new Date(app.lastOpened).getTime() / 1000) : Math.floor(Date.now() / 1000),
+        obtained_from: 'Unknown',
+        runtime_environment: '',
+        info: '',
+        has64bit: true,
+        signed_by: '',
+        publisher: '',
+        category: ''
+      }))
+    }
+    deviceInfo.applications = applications
+  }
+
+  // Transform security features to match interface
+  if (deviceInfo.securityFeatures) {
+    const security = {
+      gatekeeper: deviceInfo.securityFeatures.gatekeeper?.status,
+      sip: deviceInfo.securityFeatures.sip?.status,
+      filevault_status: deviceInfo.securityFeatures.filevault?.enabled,
+      firewall_state: deviceInfo.securityFeatures.firewall?.enabled ? '1' : '0',
+      ssh_groups: '',
+      ssh_users: '',
+      ard_groups: '',
+      root_user: 'Disabled',
+      ard_users: '',
+      firmwarepw: '',
+      skel_state: '',
+      t2_secureboot: '',
+      t2_externalboot: '',
+      activation_lock: 'Disabled',
+      filevault_users: '',
+      as_security_mode: ''
+    }
+    deviceInfo.security = security
+  }
+
+  // Transform network interfaces to match interface
+  if (deviceInfo.networkInterfaces && Array.isArray(deviceInfo.networkInterfaces)) {
+    const primaryInterface = deviceInfo.networkInterfaces.find((iface: any) => iface.status === 'Connected') || deviceInfo.networkInterfaces[0]
+    if (primaryInterface) {
+      const network = {
+        hostname: deviceInfo.name.toLowerCase().replace(/\s+/g, '-'),
+        connectionType: primaryInterface.type,
+        ssid: primaryInterface.type === 'Wi-Fi' ? 'Company-WiFi' : null,
+        signalStrength: primaryInterface.type === 'Wi-Fi' ? '-45 dBm' : null,
+        service: primaryInterface.name,
+        status: primaryInterface.status === 'Connected' ? 1 : 0,
+        ethernet: primaryInterface.type === 'Ethernet' ? primaryInterface.name : '',
+        clientid: deviceInfo.id,
+        ipv4conf: 'DHCP',
+        ipv4ip: primaryInterface.ipAddress,
+        ipv4mask: '255.255.255.0',
+        ipv4router: primaryInterface.gateway,
+        ipv6conf: '',
+        ipv6ip: '',
+        ipv6prefixlen: 0,
+        ipv6router: '',
+        ipv4dns: Array.isArray(primaryInterface.dns) ? primaryInterface.dns.join(', ') : '',
+        vlans: '',
+        activemtu: 1500,
+        validmturange: '1280-1500',
+        currentmedia: '',
+        activemedia: '',
+        searchdomain: 'company.local',
+        externalip: '',
+        location: '',
+        airdrop_channel: '',
+        airdrop_supported: false,
+        wow_supported: false,
+        supported_channels: '',
+        supported_phymodes: '',
+        wireless_card_type: '',
+        country_code: 'US',
+        firmware_version: '',
+        wireless_locale: ''
+      }
+      deviceInfo.network = network
+    }
+  }
+
   // Transform managed installs data to match interface
   if (deviceInfo.managedInstalls && deviceInfo.managedInstalls.packages) {
     deviceInfo.managedInstalls.packages = deviceInfo.managedInstalls.packages.map((pkg: any, index: number) => ({

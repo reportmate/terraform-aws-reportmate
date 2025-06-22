@@ -191,8 +191,8 @@ interface ManagedPackage {
   version: string
   installedVersion?: string
   size?: number
-  type: 'munki' | 'applesus' | 'cimian'
-  status: 'installed' | 'pending_install' | 'pending_removal' | 'install_failed' | 'install_succeeded' | 'uninstalled' | 'uninstall_failed' | 'removed'
+  type: 'munki' | 'cimian'
+  status: 'installed' | 'pending_install' | 'pending_removal' | 'install_failed' | 'install_succeeded' | 'uninstalled' | 'uninstall_failed' | 'removed' | 'Pending Update' | 'Installed' | 'Failed'
   lastUpdate: string
   description?: string
   publisher?: string
@@ -729,14 +729,7 @@ export default function DeviceDetailPage() {
             {deviceInfo.managedInstalls ? (
               <>
                 {/* Installation Status Overview */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {deviceInfo.managedInstalls.totalPackages}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Total Packages</div>
-                  </div>
-                  
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                     <div className="text-3xl font-bold text-green-600 dark:text-green-400">
                       {deviceInfo.managedInstalls.installed}
@@ -745,7 +738,7 @@ export default function DeviceDetailPage() {
                   </div>
                   
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                    <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">
                       {deviceInfo.managedInstalls.pending}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Pending</div>
@@ -759,97 +752,9 @@ export default function DeviceDetailPage() {
                   </div>
                 </div>
 
-                {/* Two-column layout: 67% for Managed Packages, 33% for Errors/Warnings/Configuration */}
+                {/* Two-column layout: 33% for Errors/Warnings/Configuration, 67% for Managed Packages */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Column A (67%): Managed Packages Table */}
-                  <div className="lg:col-span-2">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Managed Packages</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Software managed by {
-                                deviceInfo.os?.includes('macOS') || deviceInfo.os?.includes('Mac') ? 'Munki' : 
-                                deviceInfo.os?.includes('Windows') ? 'Cimian' : 
-                                deviceInfo.managedInstalls.config?.type === 'munki' ? 'Munki' : 
-                                deviceInfo.managedInstalls.config?.type === 'cimian' ? 'Cimian' : 
-                                'management system'
-                              }
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="overflow-x-auto hide-scrollbar">
-                        <table className="w-full">
-                          <thead className="bg-gray-50 dark:bg-gray-900">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Package</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Version</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Update</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {[...deviceInfo.managedInstalls.packages].sort((a, b) => 
-                              (a.displayName || a.name).localeCompare(b.displayName || b.name)
-                            ).map((pkg) => (
-                              <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900 dark:text-white">{pkg.displayName}</div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">{pkg.name}</div>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900 dark:text-white">
-                                    {pkg.version}
-                                    {pkg.installedVersion && pkg.installedVersion !== pkg.version && (
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                                        (installed: {pkg.installedVersion})
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    pkg.status === 'installed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                    pkg.status === 'pending_install' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                    pkg.status === 'pending_removal' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                    pkg.status.includes('failed') ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                    pkg.status === 'install_succeeded' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                                  }`}>
-                                    {pkg.status.replace(/_/g, ' ')}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                    pkg.type === 'munki' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
-                                    pkg.type === 'cimian' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                    'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                                  }`}>
-                                    {pkg.type}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                  {formatRelativeTime(pkg.lastUpdate)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Column B (33%): Errors/Warnings and Configuration */}
+                  {/* Column A (33%): Errors/Warnings and Configuration */}
                   <div className="space-y-4">
                     {/* Show Configuration first if no errors or warnings exist */}
                     {(!deviceInfo.managedInstalls.messages?.errors || deviceInfo.managedInstalls.messages.errors.length === 0) &&
@@ -1061,6 +966,84 @@ export default function DeviceDetailPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Column B (67%): Managed Packages Table */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900 rounded-lg flex items-center justify-center">
+                            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Managed Packages</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Software managed by {
+                                deviceInfo.os?.includes('macOS') || deviceInfo.os?.includes('Mac') ? 'Munki' : 
+                                deviceInfo.os?.includes('Windows') ? 'Cimian' : 
+                                deviceInfo.managedInstalls.config?.type === 'munki' ? 'Munki' : 
+                                deviceInfo.managedInstalls.config?.type === 'cimian' ? 'Cimian' : 
+                                'management system'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto hide-scrollbar">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 dark:bg-gray-900">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Package</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Version</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Update</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {[...deviceInfo.managedInstalls.packages].sort((a, b) => 
+                              (a.displayName || a.name).localeCompare(b.displayName || b.name)
+                            ).map((pkg) => (
+                              <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">{pkg.displayName}</div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">{pkg.name}</div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-gray-900 dark:text-white">
+                                    {pkg.version}
+                                    {pkg.installedVersion && pkg.installedVersion !== pkg.version && (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        (installed: {pkg.installedVersion})
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    pkg.status === 'installed' || pkg.status === 'Installed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                    pkg.status === 'pending_install' || pkg.status === 'Pending Update' ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' :
+                                    pkg.status === 'pending_removal' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                    pkg.status.includes('failed') || pkg.status === 'Failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                    pkg.status === 'install_succeeded' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                                  }`}>
+                                    {pkg.status.replace(/_/g, ' ')}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                  {formatRelativeTime(pkg.lastUpdate)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
@@ -1082,28 +1065,6 @@ export default function DeviceDetailPage() {
           <div className="space-y-8">
             {deviceInfo.applications && deviceInfo.applications.installedApps && Array.isArray(deviceInfo.applications.installedApps) && deviceInfo.applications.installedApps.length > 0 ? (
               <>
-                {/* Applications Overview */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-7H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Applications</h2>
-                      <p className="text-gray-600 dark:text-gray-400">Installed applications and packages</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="text-6xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                      {deviceInfo.applications.totalApps || deviceInfo.applications.installedApps.length}
-                    </div>
-                    <div className="text-lg text-gray-600 dark:text-gray-400">Total Applications</div>
-                  </div>
-                </div>
-                
                 {/* Applications List */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
