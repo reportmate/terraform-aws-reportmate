@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET() {
   try {
     // Get negotiate info to test Azure connection
-    const negotiateResponse = await fetch('https://seemianki-api.azurewebsites.net/api/negotiate?device=api-test')
+    const negotiateResponse = await fetch('https://reportmate-api.azurewebsites.net/api/negotiate?device=api-test')
     const negotiateData = await negotiateResponse.json()
     
     return NextResponse.json({

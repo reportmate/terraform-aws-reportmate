@@ -1,4 +1,4 @@
-# Seemianki Web Dashboard
+# Reportmate Web Dashboard
 
 A Next.js-based real-time dashboard for monitoring fleet events via SignalR, inspired by the MunkiReport event module design.
 
@@ -26,7 +26,7 @@ Fill in your Azure Web PubSub connection details in `.env.local`:
 ```env
 NEXT_PUBLIC_WPS_URL=wss://<your-pubsub>.webpubsub.azure.com/client/?hub=fleet
 NEXT_PUBLIC_WPS_TOKEN=<jwt-from-/api/negotiate>
-NEXT_PUBLIC_API_BASE_URL=https://seemianki-api.azurewebsites.net
+NEXT_PUBLIC_API_BASE_URL=https://reportmate-api.azurewebsites.net
 ```
 
 ### 2. Install Dependencies

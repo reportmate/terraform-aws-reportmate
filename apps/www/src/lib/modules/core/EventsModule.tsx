@@ -312,7 +312,7 @@ export class EventsModule extends BaseModule {
     name: 'Events',
     version: '1.0.0',
     description: 'Core module for displaying and managing events',
-    author: 'Seemianki Team',
+    author: 'Reportmate Team',
     enabled: true,
     
     dashboardWidgets: [

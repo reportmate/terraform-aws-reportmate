@@ -49,7 +49,7 @@ export function usePollingEvents() {
 // WebSocket test function
 export function testWebSocketConnection() {
   return new Promise((resolve, reject) => {
-    fetch('https://seemianki-api.azurewebsites.net/api/negotiate?device=test')
+    fetch('https://reportmate-api.azurewebsites.net/api/negotiate?device=test')
       .then(res => res.json())
       .then(connectionInfo => {
         console.log("Negotiate successful:", connectionInfo)

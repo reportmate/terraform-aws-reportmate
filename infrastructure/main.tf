@@ -1,15 +1,22 @@
 # Core infra
 resource "azurerm_resource_group" "rg" {
-  name     = "Seemianki"
+  name     = "Reportmate"
   location = "Canada Central"
   tags = {
     GitOps = "Terraformed"
   }
 }
 
+# User-assigned managed identity for secure authentication
+resource "azurerm_user_assigned_identity" "main" {
+  name                = "reportmate-identity"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+}
+
 # Storage account + queue
-resource "azurerm_storage_account" "seemianki" {
-  name                     = "seemiankistorage"
+resource "azurerm_storage_account" "reportmate" {
+  name                     = "reportmatestorage"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"
@@ -18,12 +25,12 @@ resource "azurerm_storage_account" "seemianki" {
 
 resource "azurerm_storage_queue" "ingest" {
   name                 = "osquery-ingest"
-  storage_account_name = azurerm_storage_account.seemianki.name
+  storage_account_name = azurerm_storage_account.reportmate.name
 }
 
 # Web PubSub (SignalR)
 resource "azurerm_web_pubsub" "wps" {
-  name                = "seemianki-signalr"
+  name                = "reportmate-signalr"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Standard_S1"
@@ -33,7 +40,7 @@ resource "azurerm_web_pubsub" "wps" {
 
 # PostgreSQL Flexible Server
 resource "azurerm_postgresql_flexible_server" "pg" {
-  name                   = "seemianki-database"
+  name                   = "reportmate-database"
   resource_group_name    = azurerm_resource_group.rg.name
   location               = azurerm_resource_group.rg.location
 
@@ -59,7 +66,7 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "azure_services" {
 }
 
 resource "azurerm_postgresql_flexible_server_database" "db" {
-  name      = "seemianki"
+  name      = "reportmate"
   server_id = azurerm_postgresql_flexible_server.pg.id
   collation = "en_US.utf8"
   charset   = "utf8"
@@ -71,7 +78,7 @@ resource "azurerm_postgresql_flexible_server_database" "db" {
 
 # Application Insights
 resource "azurerm_application_insights" "ai" {
-  name                = "seemianki-app-insights"
+  name                = "reportmate-app-insights"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   application_type    = "web"
@@ -79,7 +86,7 @@ resource "azurerm_application_insights" "ai" {
 
 # Linux Function App
 resource "azurerm_service_plan" "plan" {
-  name                = "seemianki-functions"
+  name                = "reportmate-functions"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   os_type             = "Linux"
@@ -87,12 +94,18 @@ resource "azurerm_service_plan" "plan" {
 }
 
 resource "azurerm_linux_function_app" "func" {
-  name                       = "seemianki-api"
+  name                       = "reportmate-api"
   resource_group_name        = azurerm_resource_group.rg.name
   location                   = azurerm_resource_group.rg.location
   service_plan_id            = azurerm_service_plan.plan.id
-  storage_account_name       = azurerm_storage_account.seemianki.name
-  storage_account_access_key = azurerm_storage_account.seemianki.primary_access_key
+  storage_account_name       = azurerm_storage_account.reportmate.name
+  storage_account_access_key = azurerm_storage_account.reportmate.primary_access_key
+
+  # Assign managed identity to Function App
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.main.id]
+  }
 
   site_config {
     application_stack {
@@ -103,13 +116,15 @@ resource "azurerm_linux_function_app" "func" {
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME               = "python"
     WEBSITE_RUN_FROM_PACKAGE               = "1"
-    AZURE_STORAGE_CONNECTION_STRING        = azurerm_storage_account.seemianki.primary_connection_string
+    AZURE_STORAGE_CONNECTION_STRING        = azurerm_storage_account.reportmate.primary_connection_string
     QUEUE_NAME                             = azurerm_storage_queue.ingest.name
     DATABASE_URL                           = "postgresql://${var.db_username}:${var.db_password}@${azurerm_postgresql_flexible_server.pg.fqdn}:5432/${azurerm_postgresql_flexible_server_database.db.name}?sslmode=require"
     EVENTS_CONNECTION                      = azurerm_web_pubsub.wps.primary_connection_string
     APPINSIGHTS_INSTRUMENTATIONKEY         = azurerm_application_insights.ai.instrumentation_key
     APPLICATIONINSIGHTS_CONNECTION_STRING  = azurerm_application_insights.ai.connection_string
     APPINSIGHTS_CONNECTION_STRING          = azurerm_application_insights.ai.connection_string
+    # Managed Identity configuration
+    AZURE_CLIENT_ID                        = azurerm_user_assigned_identity.main.client_id
   }
 
   lifecycle {
@@ -134,6 +149,35 @@ output "postgres_connection" {
 
 output "web_pubsub_endpoint" {
   value = azurerm_web_pubsub.wps.hostname
+}
+
+# Additional outputs for pipeline integration
+output "storage_connection_string" {
+  value     = azurerm_storage_account.reportmate.primary_connection_string
+  sensitive = true
+}
+
+output "web_pubsub_connection_string" {
+  value     = azurerm_web_pubsub.wps.primary_connection_string
+  sensitive = true
+}
+
+output "resource_group_name" {
+  value = azurerm_resource_group.rg.name
+}
+
+output "application_insights_key" {
+  value     = azurerm_application_insights.ai.instrumentation_key
+  sensitive = true
+}
+
+output "database_fqdn" {
+  value = azurerm_postgresql_flexible_server.pg.fqdn
+}
+
+# Managed Identity outputs
+output "managed_identity_id" {
+  value = azurerm_user_assigned_identity.main.id
 }
 
 # Optionally allow your local IP for dev access:

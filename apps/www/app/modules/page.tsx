@@ -239,7 +239,7 @@ export default function ModulesManagementPage() {
                 Module Marketplace
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Discover and install new modules to extend Seemianki's functionality.
+                Discover and install new modules to extend Reportmate's functionality.
               </p>
             </div>
 

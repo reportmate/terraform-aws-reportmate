@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: reportmate
+metadata:
+  template: reportmate-dashboard@0.0.1-beta
+
+services:
+  # Next.js Frontend
+  frontend:
+    project: ./apps/www
+    language: js
+    host: containerapp
+
+  # Python Azure Functions Backend  
+  backend:
+    project: ./functions
+    language: python
+    host: function
+
+hooks:
+  postprovision:
+    shell: sh  
+    run: |
+      echo "Setting up database schema..."
+      # Add database migration commands here
+    interactive: false
+    continueOnError: false

@@ -127,18 +127,19 @@ export default function DashboardPage() {
             {/* Brand */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                  </svg>
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                  <img 
+                    src="/reportmate-logo.png" 
+                    alt="Reportmate" 
+                    className="w-8 h-8 object-contain"
+                  />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                    Seemianki Report
+                    Reportmate
                   </h1>
                   <p className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
-                    Real-time Devices Monitoring
+                    Real-time Endpoint Monitoring Dashboard
                   </p>
                 </div>
               </div>
@@ -331,44 +332,44 @@ export default function DashboardPage() {
           <div className="lg:col-span-1 space-y-8">
             {/* Total Devices Widget */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {devices.length}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Total Devices
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/devices"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                >
+                  <span>All Clients</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {devices.length}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Devices
-                  </p>
-                </div>
+                </Link>
               </div>
             </div>
 
             {/* New Clients Table */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden h-[600px] flex flex-col">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      New Clients
-                    </h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Recently discovered devices
-                    </p>
-                  </div>
-                  <Link
-                    href="/devices"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
-                  >
-                    <span>View All</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    New Clients
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Recently discovered devices
+                  </p>
                 </div>
               </div>
 

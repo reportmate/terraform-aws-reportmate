@@ -354,7 +354,7 @@ export class HardwareModule extends EnhancedBaseModule {
     name: 'Hardware Information',
     version: '1.0.0',
     description: 'Comprehensive hardware monitoring and information',
-    author: 'Seemianki Team',
+    author: 'Reportmate Team',
     enabled: true,
     category: 'device',
     tags: ['hardware', 'system', 'monitoring'],

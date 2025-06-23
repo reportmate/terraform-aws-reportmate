@@ -244,7 +244,7 @@ const NetworkModule = {
     name: 'Network',
     version: '1.0.0',
     description: 'Display network configuration and connectivity information',
-    author: 'Seemianki',
+    author: 'Reportmate',
     enabled: true,
     category: 'device',
     tags: ['network', 'connectivity', 'ip', 'wireless'],

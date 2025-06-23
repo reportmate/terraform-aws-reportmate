@@ -270,7 +270,7 @@ const SecurityModule = {
     name: 'Security',
     version: '1.0.0',
     description: 'Display security status and compliance information',
-    author: 'Seemianki',
+    author: 'Reportmate',
     enabled: true,
     category: 'security',
     tags: ['security', 'compliance', 'filevault', 'firewall', 'gatekeeper'],

@@ -45,12 +45,26 @@ interface DeviceInfo {
   macAddress?: string
   totalEvents: number
   lastEventTime: string
-  hardware?: {
-    cpu: string
-    memory: string
-    storage: string
-    architecture: string
-  }
+  // Hardware properties (direct properties, not nested)
+  processor?: string
+  processorSpeed?: string
+  cores?: number
+  memory?: string
+  availableRAM?: string
+  memorySlots?: string
+  storage?: string
+  availableStorage?: string
+  storageType?: string
+  graphics?: string
+  vram?: string
+  resolution?: string
+  architecture?: string
+  diskUtilization?: number
+  memoryUtilization?: number
+  cpuUtilization?: number
+  temperature?: number
+  batteryLevel?: number
+  bootTime?: string
   network?: {
     hostname: string
     connectionType: string
@@ -110,6 +124,25 @@ interface DeviceInfo {
     filevault_status?: boolean
     filevault_users?: string
     as_security_mode?: string
+  }
+  // Platform-specific security features (from API)
+  securityFeatures?: {
+    // Mac-specific
+    filevault?: { enabled: boolean; status: string }
+    firewall?: { enabled: boolean; status: string }
+    gatekeeper?: { enabled: boolean; status: string }
+    sip?: { enabled: boolean; status: string }
+    xprotect?: { enabled: boolean; status: string }
+    automaticUpdates?: { enabled: boolean; status: string }
+    // Windows-specific
+    bitlocker?: { enabled: boolean; status: string }
+    windowsDefender?: { enabled: boolean; status: string }
+    uac?: { enabled: boolean; status: string }
+    windowsUpdates?: { enabled: boolean; status: string }
+    smartScreen?: { enabled: boolean; status: string }
+    tpm?: { enabled: boolean; status: string; version?: string }
+    // Cross-platform
+    edr?: { installed: boolean; name: string | null; status: string; version: string | null }
   }
   applications?: {
     totalApps: number
@@ -237,6 +270,77 @@ export default function DeviceDetailPage() {
   }, [])
   
   // Update URL when tab changes
+  const renderConfigurationFields = (config: any) => {
+    // Define the core fields to display in order
+    const coreFields = [
+      {
+        key: 'manifest',
+        label: 'Manifest',
+        value: config.ClientIdentifier || config.manifest,
+        fullWidth: true // Display on its own line
+      },
+      {
+        key: 'repo',
+        label: 'Repo',
+        value: config.SoftwareRepoURL || config.softwareRepoURL,
+        fullWidth: true // Display on its own line
+      },
+      {
+        key: 'lastRun',
+        label: 'Last Run',
+        value: formatRelativeTime(config.lastRun || config.LastCheckDate),
+        subValue: `Duration: ${config.duration}`,
+        fullWidth: false
+      },
+      {
+        key: 'runType',
+        label: 'Run type',
+        value: config.runType,
+        fullWidth: false,
+        capitalize: true
+      },
+      {
+        key: 'version',
+        label: 'Version',
+        value: config.version,
+        fullWidth: false
+      }
+    ]
+    
+    return (
+      <div className="divide-y divide-gray-200 dark:divide-gray-700">
+        {coreFields.map((field) => {
+          if (!field.value) return null
+          
+          if (field.fullWidth) {
+            return (
+              <div key={field.key} className="px-4 py-2">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{field.label}</div>
+                <div className="text-sm text-gray-900 dark:text-white break-all">
+                  {field.value}
+                </div>
+              </div>
+            )
+          } else {
+            return (
+              <div key={field.key} className="flex justify-between items-center px-4 py-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{field.label}</span>
+                <div className="text-right">
+                  <div className={`text-sm text-gray-900 dark:text-white font-semibold ${field.capitalize ? 'capitalize' : ''}`}>
+                    {field.value}
+                  </div>
+                  {field.subValue && (
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{field.subValue}</div>
+                  )}
+                </div>
+              </div>
+            )
+          }
+        })}
+      </div>
+    )
+  }
+
   const handleTabChange = (tabId: TabType) => {
     setActiveTab(tabId)
     window.history.pushState(null, '', `#${tabId}`)
@@ -577,23 +681,29 @@ export default function DeviceDetailPage() {
                 </div>
               </div>
               <div className="p-6">
-                {deviceInfo.hardware ? (
+                {deviceInfo.processor ? (
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Processor</label>
-                      <p className="text-gray-900 dark:text-white">{deviceInfo.hardware.cpu}</p>
+                      <p className="text-gray-900 dark:text-white">{deviceInfo.processor}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Memory</label>
-                      <p className="text-gray-900 dark:text-white">{deviceInfo.hardware.memory}</p>
+                      <p className="text-gray-900 dark:text-white">{deviceInfo.memory}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Storage</label>
-                      <p className="text-gray-900 dark:text-white">{deviceInfo.hardware.storage}</p>
+                      <p className="text-gray-900 dark:text-white">{deviceInfo.storage}</p>
                     </div>
+                    {deviceInfo.graphics && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Graphics</label>
+                        <p className="text-gray-900 dark:text-white">{deviceInfo.graphics}</p>
+                      </div>
+                    )}
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Architecture</label>
-                      <p className="text-gray-900 dark:text-white">{deviceInfo.hardware.architecture}</p>
+                      <p className="text-gray-900 dark:text-white">{deviceInfo.architecture}</p>
                     </div>
                   </div>
                 ) : (
@@ -618,47 +728,123 @@ export default function DeviceDetailPage() {
                 </div>
               </div>
               <div className="p-6">
-                {deviceInfo.security ? (
+                {deviceInfo.securityFeatures ? (
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Gatekeeper</label>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        deviceInfo.security.gatekeeper === 'Enabled' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {deviceInfo.security.gatekeeper || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">SIP</label>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        deviceInfo.security.sip === 'Enabled' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {deviceInfo.security.sip || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">FileVault</label>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        deviceInfo.security.filevault_status 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {deviceInfo.security.filevault_status ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
+                    {/* Platform-specific security features */}
+                    {deviceInfo.os?.toLowerCase().includes('mac') ? (
+                      <>
+                        {/* Mac Security Features */}
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">FileVault</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.filevault?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.filevault?.status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Gatekeeper</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.gatekeeper?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.gatekeeper?.status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">SIP</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.sip?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.sip?.status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">XProtect</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.xprotect?.status === 'Up to date' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.xprotect?.status || 'Unknown'}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Windows Security Features */}
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">BitLocker</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.bitlocker?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.bitlocker?.status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Windows Defender</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.windowsDefender?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.windowsDefender?.status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">UAC</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.uac?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.uac?.status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">TPM</label>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.tpm?.enabled 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.tpm?.status || 'Unknown'} {deviceInfo.securityFeatures.tpm?.version && `(${deviceInfo.securityFeatures.tpm.version})`}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Universal Security Features */}
                     <div className="flex justify-between items-center">
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Firewall</label>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        deviceInfo.security.firewall_state === '1' 
+                        deviceInfo.securityFeatures.firewall?.enabled 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                           : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                       }`}>
-                        {deviceInfo.security.firewall_state === '1' ? 'Enabled' : 
-                         deviceInfo.security.firewall_state === '2' ? 'Block All' : 'Disabled'}
+                        {deviceInfo.securityFeatures.firewall?.status || 'Unknown'}
+                      </span>
+                    </div>
+                    
+                    {/* EDR Status */}
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">EDR</label>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        deviceInfo.securityFeatures.edr?.installed 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {deviceInfo.securityFeatures.edr?.installed 
+                          ? `${deviceInfo.securityFeatures.edr.name} (${deviceInfo.securityFeatures.edr.status})`
+                          : 'Not Installed'
+                        }
                       </span>
                     </div>
                   </div>
@@ -776,47 +962,7 @@ export default function DeviceDetailPage() {
                           </div>
                         </div>
                         <div className="p-0">
-                          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Manifest</span>
-                              <span className="text-sm text-gray-900 dark:text-white font-semibold">{deviceInfo.managedInstalls.config.manifest}</span>
-                            </div>
-                            <div className="px-4 py-2">
-                              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Repo URL</div>
-                              <div className="text-sm text-gray-900 dark:text-white break-all">
-                                {deviceInfo.managedInstalls.config.softwareRepoURL}
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Version</span>
-                              <span className="text-sm text-gray-900 dark:text-white font-semibold">{deviceInfo.managedInstalls.config.version}</span>
-                            </div>
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Run Type</span>
-                              <span className="text-sm text-gray-900 dark:text-white font-semibold capitalize">{deviceInfo.managedInstalls.config.runType}</span>
-                            </div>
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Last Run</span>
-                              <div className="text-right">
-                                <div className="text-sm text-gray-900 dark:text-white">{formatRelativeTime(deviceInfo.managedInstalls.config.lastRun)}</div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400">Duration: {deviceInfo.managedInstalls.config.duration}</div>
-                              </div>
-                            </div>
-                            {deviceInfo.managedInstalls.config.appleCatalogURL && (
-                              <div className="px-4 py-2">
-                                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Apple Catalog URL</div>
-                                <div className="text-sm text-gray-900 dark:text-white break-all">
-                                  {deviceInfo.managedInstalls.config.appleCatalogURL}
-                                </div>
-                              </div>
-                            )}
-                            {deviceInfo.managedInstalls.config.localOnlyManifest && (
-                              <div className="flex justify-between items-center px-4 py-2">
-                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Local Only Manifest</span>
-                                <span className="text-sm text-gray-900 dark:text-white font-semibold">{deviceInfo.managedInstalls.config.localOnlyManifest}</span>
-                              </div>
-                            )}
-                          </div>
+                          {renderConfigurationFields(deviceInfo.managedInstalls.config)}
                         </div>
                       </div>
                     )}
@@ -921,47 +1067,7 @@ export default function DeviceDetailPage() {
                           </div>
                         </div>
                         <div className="p-0">
-                          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Manifest</span>
-                              <span className="text-sm text-gray-900 dark:text-white font-semibold">{deviceInfo.managedInstalls.config.manifest}</span>
-                            </div>
-                            <div className="px-4 py-2">
-                              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Repo URL</div>
-                              <div className="text-sm text-gray-900 dark:text-white break-all">
-                                {deviceInfo.managedInstalls.config.softwareRepoURL}
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Version</span>
-                              <span className="text-sm text-gray-900 dark:text-white font-semibold">{deviceInfo.managedInstalls.config.version}</span>
-                            </div>
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Run Type</span>
-                              <span className="text-sm text-gray-900 dark:text-white font-semibold capitalize">{deviceInfo.managedInstalls.config.runType}</span>
-                            </div>
-                            <div className="flex justify-between items-center px-4 py-2">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Last Run</span>
-                              <div className="text-right">
-                                <div className="text-sm text-gray-900 dark:text-white">{formatRelativeTime(deviceInfo.managedInstalls.config.lastRun)}</div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400">Duration: {deviceInfo.managedInstalls.config.duration}</div>
-                              </div>
-                            </div>
-                            {deviceInfo.managedInstalls.config.appleCatalogURL && (
-                              <div className="px-4 py-2">
-                                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Apple Catalog URL</div>
-                                <div className="text-sm text-gray-900 dark:text-white break-all">
-                                  {deviceInfo.managedInstalls.config.appleCatalogURL}
-                                </div>
-                              </div>
-                            )}
-                            {deviceInfo.managedInstalls.config.localOnlyManifest && (
-                              <div className="flex justify-between items-center px-4 py-2">
-                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Local Only Manifest</span>
-                                <span className="text-sm text-gray-900 dark:text-white font-semibold">{deviceInfo.managedInstalls.config.localOnlyManifest}</span>
-                              </div>
-                            )}
-                          </div>
+                          {renderConfigurationFields(deviceInfo.managedInstalls.config)}
                         </div>
                       </div>
                     )}
@@ -1271,7 +1377,7 @@ export default function DeviceDetailPage() {
         {/* Security Tab */}
         {activeTab === 'security' && (
           <div className="space-y-8">
-            {deviceInfo.security ? (
+            {deviceInfo.securityFeatures ? (
               <>
                 {/* Security Overview */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -1287,34 +1393,84 @@ export default function DeviceDetailPage() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold mb-1 ${
-                        deviceInfo.security.filevault_status ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {deviceInfo.security.filevault_status ? 'Enabled' : 'Disabled'}
+                  {/* Platform-specific security overview */}
+                  {deviceInfo.os?.toLowerCase().includes('mac') ? (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.filevault?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.filevault?.enabled ? 'Enabled' : 'Disabled'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">FileVault</div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">FileVault</div>
-                    </div>
-                    
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold mb-1 ${
-                        deviceInfo.security.firewall_state === 'On' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {deviceInfo.security.firewall_state || 'Unknown'}
+                      
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.firewall?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.firewall?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Firewall</div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Firewall</div>
-                    </div>
-                    
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold mb-1 ${
-                        deviceInfo.security.gatekeeper === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {deviceInfo.security.gatekeeper || 'Unknown'}
+                      
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.gatekeeper?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.gatekeeper?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Gatekeeper</div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Gatekeeper</div>
+                      
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.sip?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.sip?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">SIP</div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.bitlocker?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.bitlocker?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">BitLocker</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.firewall?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.firewall?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Firewall</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.windowsDefender?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.windowsDefender?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Windows Defender</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${
+                          deviceInfo.securityFeatures.tpm?.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {deviceInfo.securityFeatures.tpm?.status || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">TPM {deviceInfo.securityFeatures.tpm?.version}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Detailed Security Information */}
@@ -1322,72 +1478,121 @@ export default function DeviceDetailPage() {
                   {/* System Security */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">System Security</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {deviceInfo.os?.toLowerCase().includes('mac') ? 'macOS Security' : 'Windows Security'}
+                      </h3>
                     </div>
                     <div className="p-6 space-y-4">
-                      {deviceInfo.security.sip && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">System Integrity Protection</label>
-                          <p className={`${deviceInfo.security.sip === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {deviceInfo.security.sip}
-                          </p>
-                        </div>
-                      )}
-                      {deviceInfo.security.t2_secureboot && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Secure Boot</label>
-                          <p className="text-gray-900 dark:text-white">{deviceInfo.security.t2_secureboot}</p>
-                        </div>
-                      )}
-                      {deviceInfo.security.as_security_mode && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Security Mode</label>
-                          <p className="text-gray-900 dark:text-white">{deviceInfo.security.as_security_mode}</p>
-                        </div>
-                      )}
-                      {deviceInfo.security.activation_lock && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Activation Lock</label>
-                          <p className={`${deviceInfo.security.activation_lock === 'Disabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {deviceInfo.security.activation_lock}
-                          </p>
-                        </div>
+                      {deviceInfo.os?.toLowerCase().includes('mac') ? (
+                        <>
+                          {/* Mac-specific security features */}
+                          {deviceInfo.securityFeatures.sip && (
+                            <div className="flex justify-between items-center">
+                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">System Integrity Protection</label>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                deviceInfo.securityFeatures.sip.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                                {deviceInfo.securityFeatures.sip.status}
+                              </span>
+                            </div>
+                          )}
+                          {deviceInfo.securityFeatures.xprotect && (
+                            <div className="flex justify-between items-center">
+                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">XProtect</label>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                deviceInfo.securityFeatures.xprotect.status === 'Up to date' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              }`}>
+                                {deviceInfo.securityFeatures.xprotect.status}
+                              </span>
+                            </div>
+                          )}
+                          {deviceInfo.securityFeatures.automaticUpdates && (
+                            <div className="flex justify-between items-center">
+                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Automatic Updates</label>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                deviceInfo.securityFeatures.automaticUpdates.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                                {deviceInfo.securityFeatures.automaticUpdates.status}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {/* Windows-specific security features */}
+                          {deviceInfo.securityFeatures.uac && (
+                            <div className="flex justify-between items-center">
+                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">User Account Control</label>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                deviceInfo.securityFeatures.uac.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                                {deviceInfo.securityFeatures.uac.status}
+                              </span>
+                            </div>
+                          )}
+                          {deviceInfo.securityFeatures.windowsUpdates && (
+                            <div className="flex justify-between items-center">
+                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Windows Updates</label>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                deviceInfo.securityFeatures.windowsUpdates.status === 'Up to date' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              }`}>
+                                {deviceInfo.securityFeatures.windowsUpdates.status}
+                              </span>
+                            </div>
+                          )}
+                          {deviceInfo.securityFeatures.smartScreen && (
+                            <div className="flex justify-between items-center">
+                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">SmartScreen</label>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                deviceInfo.securityFeatures.smartScreen.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                                {deviceInfo.securityFeatures.smartScreen.status}
+                              </span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
                   
-                  {/* User Access */}
+                  {/* Endpoint Security */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Access</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Endpoint Security</h3>
                     </div>
                     <div className="p-6 space-y-4">
-                      {deviceInfo.security.root_user && (
+                      {/* EDR Status */}
+                      <div className="flex justify-between items-start">
                         <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Root User</label>
-                          <p className={`${deviceInfo.security.root_user === 'Disabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {deviceInfo.security.root_user}
-                          </p>
+                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Endpoint Detection & Response</label>
+                          {deviceInfo.securityFeatures.edr?.installed && deviceInfo.securityFeatures.edr.version && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              Version {deviceInfo.securityFeatures.edr.version}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      {deviceInfo.security.ssh_users && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">SSH Users</label>
-                          <p className="text-gray-900 dark:text-white font-mono">{deviceInfo.security.ssh_users}</p>
+                        <div className="text-right">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceInfo.securityFeatures.edr?.installed ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {deviceInfo.securityFeatures.edr?.installed ? deviceInfo.securityFeatures.edr.status : 'Not Installed'}
+                          </span>
+                          {deviceInfo.securityFeatures.edr?.installed && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              {deviceInfo.securityFeatures.edr.name}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      {deviceInfo.security.ssh_groups && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">SSH Groups</label>
-                          <p className="text-gray-900 dark:text-white font-mono">{deviceInfo.security.ssh_groups}</p>
-                        </div>
-                      )}
-                      {deviceInfo.security.filevault_users && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 dark:text-gray-400">FileVault Users</label>
-                          <p className="text-gray-900 dark:text-white font-mono">{deviceInfo.security.filevault_users}</p>
-                        </div>
-                      )}
+                      </div>
+                      
+                      {/* Additional endpoint security info could go here */}
+                      <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                        {deviceInfo.securityFeatures.edr?.installed ? (
+                          <p>✓ Active EDR monitoring provides real-time threat detection and response capabilities.</p>
+                        ) : (
+                          <p>⚠ No EDR solution detected. Consider deploying endpoint protection for enhanced security monitoring.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

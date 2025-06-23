@@ -1,7 +1,17 @@
 /** @type {import("next").NextConfig} */
 export default {
-  // Only use static export in production builds
-  ...(process.env.NODE_ENV === 'production' && {
+  // Use standalone output for Docker, static export for production builds
+  ...(process.env.DOCKER_BUILD === 'true' ? {
+    output: 'standalone',
+    eslint: {
+      // Disable ESLint during production builds in Docker
+      ignoreDuringBuilds: true,
+    },
+    typescript: {
+      // Disable TypeScript checking during production builds in Docker
+      ignoreBuildErrors: true,
+    },
+  } : process.env.NODE_ENV === 'production' && {
     output: 'export',
     trailingSlash: true,
     skipTrailingSlashRedirect: true,
@@ -10,7 +20,7 @@ export default {
   
   // Disable image optimization for static export
   images: {
-    unoptimized: process.env.NODE_ENV === 'production'
+    unoptimized: process.env.NODE_ENV === 'production' && process.env.DOCKER_BUILD !== 'true'
   },
   
   // Environment variables

@@ -20,18 +20,8 @@ export function useLiveEvents() {
     let connection: HubConnection | null = null
     let pollingInterval: NodeJS.Timeout | null = null
     
-    // Initialize with test event
-    const testEvent: FleetEvent = {
-      id: "test-" + Date.now(),
-      device: "dashboard-client",
-      kind: "system",
-      ts: new Date().toISOString(),
-      payload: { 
-        message: "Dashboard loaded successfully", 
-        status: "ready"
-      }
-    }
-    setEvents([testEvent])
+    // Initialize with empty events array - no fake test events
+    console.log("🚀 SignalR client initialized")
     
     const startPolling = () => {
       console.log("🔄 Starting polling mode")

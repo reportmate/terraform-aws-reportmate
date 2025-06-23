@@ -1,0 +1,202 @@
+// Enhanced Prisma Schema for Reportmate
+// This schema supports all the rich device data shown in the UI
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Main Device model with comprehensive fields
+model Device {
+  id             String    @id
+  name           String
+  model          String?
+  os             String?
+  serialNumber   String?   @map("serial_number")
+  assetTag       String?   @map("asset_tag")
+  ipAddress      String?   @map("ip_address")
+  macAddress     String?   @map("mac_address")
+  location       String?
+  lastSeen       DateTime? @map("last_seen") @db.Timestamptz
+  status         String    @default("unknown")
+  uptime         String?
+  totalEvents    Int       @default(0) @map("total_events")
+  lastEventTime  DateTime? @map("last_event_time") @db.Timestamptz
+  
+  // Hardware Information (stored as JSONB for flexibility)
+  processor      String?
+  processorSpeed String?   @map("processor_speed")
+  cores          Int?
+  memory         String?
+  availableRAM   String?   @map("available_ram")
+  memorySlots    String?   @map("memory_slots")
+  storage        String?
+  availableStorage String? @map("available_storage")
+  storageType    String?   @map("storage_type")
+  graphics       String?
+  vram           String?
+  resolution     String?
+  architecture   String?
+  
+  // System Performance Metrics
+  diskUtilization   Int?    @map("disk_utilization")
+  memoryUtilization Int?    @map("memory_utilization")
+  cpuUtilization    Int?    @map("cpu_utilization")
+  temperature       Int?
+  batteryLevel      Int?    @map("battery_level")
+  bootTime          DateTime? @map("boot_time") @db.Timestamptz
+  
+  // Complex data stored as JSONB
+  networkInterfaces Json?   @map("network_interfaces")
+  securityFeatures  Json?   @map("security_features")
+  mdmInfo           Json?   @map("mdm_info")
+  managedInstalls   Json?   @map("managed_installs")
+  applications      Json?
+  software          Json?
+  security          Json?
+  
+  // Timestamps
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relations
+  events       Event[]
+  cimianRuns   CimianRun[]
+  
+  @@index([lastSeen])
+  @@index([status])
+  @@index([location])
+  @@index([os])
+  @@map("devices")
+}
+
+// Enhanced Event model
+model Event {
+  id       String   @id
+  deviceId String   @map("device_id")
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  kind     String
+  ts       DateTime @db.Timestamptz
+  payload  Json
+  
+  // Additional event metadata
+  severity String?  @default("info")
+  source   String?
+  category String?
+  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  @@index([kind, ts])
+  @@index([deviceId, ts])
+  @@index([severity])
+  @@map("events")
+}
+
+// Enhanced CimianRun model with device relation
+model CimianRun {
+  id       String   @id @default(uuid())
+  deviceId String   @map("device_id")
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  ts       DateTime @db.Timestamptz
+  exitCode Int      @map("exit_code")
+  duration Int
+  details  String?
+  
+  // Additional run metadata
+  runType    String? @map("run_type")
+  packagesInstalled Int? @map("packages_installed")
+  packagesUpdated   Int? @map("packages_updated")
+  packagesFailed    Int? @map("packages_failed")
+  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  @@index([ts])
+  @@index([deviceId, ts])
+  @@map("cimian_runs")
+}
+
+// New model for Device Hardware details (normalized approach)
+model DeviceHardware {
+  id         String  @id @default(uuid())
+  deviceId   String  @unique @map("device_id")
+  device     Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  processor      String?
+  processorSpeed String? @map("processor_speed")
+  cores          Int?
+  threads        Int?
+  memory         String?
+  memorySlots    String? @map("memory_slots")
+  storage        String?
+  storageType    String? @map("storage_type")
+  graphics       String?
+  vram           String?
+  architecture   String?
+  
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@map("device_hardware")
+}
+
+// New model for Device Network Interfaces
+model NetworkInterface {
+  id         String  @id @default(uuid())
+  deviceId   String  @map("device_id")
+  device     Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  name       String
+  type       String
+  status     String
+  ipAddress  String? @map("ip_address")
+  macAddress String? @map("mac_address")
+  gateway    String?
+  dns        Json?
+  speed      String?
+  
+  // Wireless specific fields
+  ssid          String?
+  signalStrength Int? @map("signal_strength")
+  channel       Int?
+  
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([deviceId])
+  @@map("network_interfaces")
+}
+
+// New model for MDM Profiles
+model MDMProfile {
+  id           String  @id
+  deviceId     String  @map("device_id")
+  device       Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  name         String
+  description  String?
+  type         String
+  status       String
+  lastModified DateTime @map("last_modified") @db.Timestamptz
+  
+  // Profile payload/configuration
+  configuration Json?
+  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([deviceId])
+  @@index([type])
+  @@index([status])
+  @@map("mdm_profiles")
+}
+
+// Add missing relations to Device model
+model Device {
+  // ... existing fields ...
+  
+  hardware         DeviceHardware?
+  networkInterfaces NetworkInterface[]
+  mdmProfiles      MDMProfile[]
+}

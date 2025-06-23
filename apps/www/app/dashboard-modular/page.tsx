@@ -54,7 +54,7 @@ export default function ModularDashboardPage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Seemianki Fleet Dashboard
+                Reportmate Fleet Dashboard
               </h1>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {dashboardWidgets.length} widgets loaded

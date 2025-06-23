@@ -16,14 +16,24 @@ terraform {
     resource_group_name  = "Terraform"
     storage_account_name = "ecuadgitopsterraform"
     container_name       = "terraform-state"
-    key                  = "seemianki.tfstate"
+    key                  = "reportmate.tfstate"
   }
 }
 
 provider "azurerm" {
   features {}
   subscription_id = "59d35012-b593-4b2f-bd50-28e666ed12f7"
+  
+  # Disable automatic resource provider registration to avoid conflicts
+  resource_provider_registrations = "none"
 }
+
+# =================================================================
+# RESOURCE PROVIDER REGISTRATIONS
+# =================================================================
+
+# Note: Microsoft.ContainerService and Microsoft.OperationalInsights are automatically
+# registered by Terraform. Microsoft.App needs to be imported if it already exists.
 
 # Azure Flexible Server wants user@server for non-AAD logins
 locals {

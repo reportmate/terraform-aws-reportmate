@@ -1,5 +1,5 @@
 /**
- * Seemianki Module Registry
+ * Reportmate Module Registry
  * Inspired by MunkiReport's modular architecture
  */
 
@@ -259,7 +259,7 @@ class ModuleRegistry {
    */
   private loadEnabledModules(): void {
     try {
-      const stored = localStorage.getItem('seemianki_enabled_modules')
+      const stored = localStorage.getItem('reportmate_enabled_modules')
       if (stored) {
         const enabled = JSON.parse(stored)
         this.enabledModules = new Set(enabled)
@@ -275,7 +275,7 @@ class ModuleRegistry {
   private saveEnabledModules(): void {
     try {
       const enabled = Array.from(this.enabledModules)
-      localStorage.setItem('seemianki_enabled_modules', JSON.stringify(enabled))
+      localStorage.setItem('reportmate_enabled_modules', JSON.stringify(enabled))
     } catch (error) {
       console.error('Failed to save enabled modules:', error)
     }

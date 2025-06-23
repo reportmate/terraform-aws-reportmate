@@ -51,17 +51,8 @@ export function useLiveEvents() {
     let connection: HubConnection | null = null
     let pollingInterval: NodeJS.Timeout | null = null
     
-    // Add initial test event to show UI is working
-    const testEvent: FleetEvent = {
-      id: "test-" + Date.now(),
-      device: "dashboard-client",
-      kind: "system",
-      ts: new Date().toISOString(),
-      payload: { message: "Dashboard loaded successfully", status: "ready" }
-    }
-    setEvents([testEvent])
-    setLastUpdateTime(new Date())
-    console.log("Dashboard initialized with test event")
+    // Don't add fake test events - just start with empty state
+    console.log("Dashboard initialized - starting event polling")
     
     async function startConnection() {
       try {
@@ -69,7 +60,7 @@ export function useLiveEvents() {
         
         // Get a fresh token from the negotiate endpoint
         console.log("Getting fresh token from negotiate endpoint...")
-        const response = await fetch("https://seemianki-api.azurewebsites.net/api/negotiate?device=dashboard-web")
+        const response = await fetch("https://reportmate-api.azurewebsites.net/api/negotiate?device=dashboard-web")
         if (!response.ok) {
           throw new Error(`Negotiate failed: ${response.status}`)
         }
@@ -77,7 +68,7 @@ export function useLiveEvents() {
         const tokenData = await response.json()
         console.log("Got negotiate response:", { baseUrl: tokenData.baseUrl, hasToken: !!tokenData.token })
         
-        const url = tokenData.baseUrl || "wss://seemianki-signalr.webpubsub.azure.com/client/hubs/fleet"
+        const url = tokenData.baseUrl || "wss://reportmate-signalr.webpubsub.azure.com/client/hubs/fleet"
         
         console.log("Starting SignalR connection to:", url)
         
@@ -155,16 +146,8 @@ export function useLiveEvents() {
         console.error("Failed to start SignalR connection:", error)
         setConnectionStatus("error")
         
-        // Add error event to show what happened
-        const errorEvent: FleetEvent = {
-          id: "error-" + Date.now(),
-          device: "dashboard-client",
-          kind: "error",
-          ts: new Date().toISOString(),
-          payload: { error: (error as Error).message, type: "connection_failed" }
-        }
-        setEvents(prev => [errorEvent, ...prev])
-        setLastUpdateTime(new Date())
+        // Just log the error, don't create fake events
+        console.log("SignalR connection failed, falling back to polling mode")
         
         // Start polling as fallback
         startPolling()

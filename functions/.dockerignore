@@ -1,0 +1,14 @@
+# Functions .dockerignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+.env
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+*.log

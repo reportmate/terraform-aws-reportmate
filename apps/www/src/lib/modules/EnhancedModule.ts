@@ -1,5 +1,5 @@
 /**
- * Enhanced Module System for Seemianki
+ * Enhanced Module System for Reportmate
  * 
  * This extends the existing module system to support:
  * - Modular data widgets/components
@@ -182,12 +182,12 @@ export abstract class EnhancedBaseModule {
   
   // Configuration methods
   getConfig<T = any>(): T {
-    const stored = localStorage.getItem(`seemianki_module_config_${this.manifest.id}`)
+    const stored = localStorage.getItem(`reportmate_module_config_${this.manifest.id}`)
     return stored ? JSON.parse(stored) : this.getDefaultConfig()
   }
   
   setConfig<T = any>(config: T): void {
-    localStorage.setItem(`seemianki_module_config_${this.manifest.id}`, JSON.stringify(config))
+    localStorage.setItem(`reportmate_module_config_${this.manifest.id}`, JSON.stringify(config))
     this.onConfigChange(config)
   }
   

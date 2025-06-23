@@ -377,7 +377,7 @@ export class ManagedInstallsModule extends EnhancedBaseModule {
     name: 'Managed Installs',
     version: '1.0.0',
     description: 'Software management and deployment tracking',
-    author: 'Seemianki Team',
+    author: 'Reportmate Team',
     enabled: true,
     category: 'device',
     tags: ['software', 'deployment', 'munki', 'cimian'],

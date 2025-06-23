@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 // Comprehensive mock device database with 6 devices (3 Macs, 3 Windows)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const deviceDatabase: Record<string, any> = {
+export const deviceDatabase: Record<string, any> = {
   // Mac Device 1 - Marketing Designer
   'JY93C5YGGM': {
     id: 'JY93C5YGGM',
@@ -22,9 +22,18 @@ const deviceDatabase: Record<string, any> = {
     
     // System Information
     processor: 'Apple M2 8-Core',
+    processorSpeed: '3.49 GHz',
+    cores: 8,
     memory: '16 GB',
+    availableRAM: '8.2 GB',
+    memorySlots: 'Unified Memory',
     storage: '512 GB SSD',
+    availableStorage: '164 GB',
+    storageType: 'SSD',
     graphics: 'Apple M2 10-Core GPU',
+    vram: 'Shared',
+    resolution: '2880 x 1864',
+    architecture: 'arm64',
     diskUtilization: 68,
     memoryUtilization: 45,
     cpuUtilization: 23,
@@ -63,7 +72,70 @@ const deviceDatabase: Record<string, any> = {
       gatekeeper: { enabled: true, status: 'Active' },
       sip: { enabled: true, status: 'Enabled' },
       xprotect: { enabled: true, status: 'Up to date' },
-      automaticUpdates: { enabled: true, status: 'Enabled' }
+      automaticUpdates: { enabled: true, status: 'Enabled' },
+      edr: { installed: true, name: 'CrowdStrike Falcon', status: 'Active', version: '7.15.0' }
+    },
+    
+    // MDM Information
+    mdm: {
+      enrolled: true,
+      enrolled_via_dep: true,
+      server_url: 'https://mdm.ecuad.ca',
+      user_approved: true,
+      organization: 'Emily Carr University',
+      department: 'Marketing',
+      profiles: [
+        {
+          id: 'wifi-profile-001',
+          name: 'Corporate Wi-Fi Profile',
+          description: 'Configures Wi-Fi access for corporate network',
+          type: 'Wi-Fi',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 2592000000).toISOString() // 30 days ago
+        },
+        {
+          id: 'security-profile-001',
+          name: 'Security Baseline',
+          description: 'Enforces corporate security policies',
+          type: 'Security',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 1296000000).toISOString() // 15 days ago
+        },
+        {
+          id: 'email-profile-001',
+          name: 'Email Configuration',
+          description: 'Configures corporate email settings',
+          type: 'Email',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 2592000000).toISOString() // 30 days ago
+        }
+      ],
+      restrictions: {
+        app_installation: 'allowed',
+        camera_disabled: false,
+        screen_recording_disabled: false,
+        system_preferences_disabled: false,
+        touch_id_disabled: false,
+        siri_disabled: false
+      },
+      apps: [
+        {
+          id: 'managed-app-001',
+          name: 'Corporate Portal',
+          bundleId: 'com.ecuad.portal',
+          status: 'installed',
+          source: 'mdm',
+          lastUpdate: new Date(Date.now() - 604800000).toISOString() // 7 days ago
+        },
+        {
+          id: 'managed-app-002',
+          name: 'Adobe Creative Cloud',
+          bundleId: 'com.adobe.CreativeCloud',
+          status: 'installed',
+          source: 'mdm',
+          lastUpdate: new Date(Date.now() - 1209600000).toISOString() // 14 days ago
+        }
+      ]
     },
     
     // Managed Installs (Munki)
@@ -73,11 +145,31 @@ const deviceDatabase: Record<string, any> = {
       nextRun: new Date(Date.now() + 14400000).toISOString(), // 4 hours from now
       status: 'Success',
       config: {
-        munki_repo_url: 'https://munki.company.com/repo',
-        client_identifier: 'marketing-mac',
-        managed_installs_dir: '/Library/Managed Installs',
-        log_file: '/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log',
-        install_apple_software_updates: true
+        type: 'munki',
+        version: '6.2.1',
+        // UI expects these specific property names
+        softwareRepoURL: 'https://munki.ecuad.ca/deployment',
+        manifest: 'Staff/IT/RodChristiansen',
+        runType: 'auto',
+        lastRun: new Date(Date.now() - 7200000).toISOString(),
+        duration: '2m 45s',
+        // Based on your provided Munki config - original property names for reference
+        SoftwareRepoURL: 'https://munki.ecuad.ca/deployment',
+        ClientIdentifier: 'Staff/IT/RodChristiansen',
+        ManagedInstallDir: '/Library/Managed Installs',
+        LogFile: '/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log',
+        LoggingLevel: 1,
+        InstallAppleSoftwareUpdates: false,
+        AppleSoftwareUpdatesOnly: false,
+        LastCheckDate: new Date(Date.now() - 7200000).toISOString(),
+        LastCheckResult: 1,
+        PendingUpdateCount: 0,
+        AggressiveUpdateNotificationDays: 14,
+        DaysBetweenNotifications: 1,
+        UseNotificationCenterDays: 3,
+        SuppressUserNotification: true,
+        PackageVerificationMode: 'hash',
+        FollowHTTPRedirects: 'none'
       },
       messages: {
         errors: [
@@ -194,9 +286,18 @@ const deviceDatabase: Record<string, any> = {
     lastEventTime: new Date(Date.now() - 900000).toISOString(),
     
     processor: 'Apple M3 Pro 12-Core',
+    processorSpeed: '4.05 GHz',
+    cores: 12,
     memory: '32 GB',
+    availableRAM: '10.2 GB',
+    memorySlots: 'Unified Memory',
     storage: '1 TB SSD',
+    availableStorage: '480 GB',
+    storageType: 'SSD',
     graphics: 'Apple M3 Pro 18-Core GPU',
+    vram: 'Shared',
+    resolution: '3456 x 2234',
+    architecture: 'arm64',
     diskUtilization: 52,
     memoryUtilization: 68,
     cpuUtilization: 41,
@@ -233,7 +334,70 @@ const deviceDatabase: Record<string, any> = {
       gatekeeper: { enabled: true, status: 'Active' },
       sip: { enabled: false, status: 'Disabled' },
       xprotect: { enabled: true, status: 'Up to date' },
-      automaticUpdates: { enabled: false, status: 'Disabled' }
+      automaticUpdates: { enabled: false, status: 'Disabled' },
+      edr: { installed: true, name: 'SentinelOne', status: 'Active', version: '23.1.2.8' }
+    },
+    
+    // MDM Information
+    mdm: {
+      enrolled: true,
+      enrolled_via_dep: false,
+      server_url: 'https://mdm.ecuad.ca',
+      user_approved: true,
+      organization: 'Emily Carr University',
+      department: 'IT',
+      profiles: [
+        {
+          id: 'wifi-profile-001',
+          name: 'Corporate Wi-Fi Profile',
+          description: 'Configures Wi-Fi access for corporate network',
+          type: 'Wi-Fi',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 2592000000).toISOString() // 30 days ago
+        },
+        {
+          id: 'developer-profile-001',
+          name: 'Developer Tools',
+          description: 'Configuration for development environment',
+          type: 'Configuration',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 604800000).toISOString() // 7 days ago
+        },
+        {
+          id: 'vpn-profile-001',
+          name: 'VPN Configuration',
+          description: 'Corporate VPN access',
+          type: 'VPN',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 1296000000).toISOString() // 15 days ago
+        }
+      ],
+      restrictions: {
+        app_installation: 'allowed',
+        camera_disabled: false,
+        screen_recording_disabled: false,
+        system_preferences_disabled: true,
+        touch_id_disabled: false,
+        siri_disabled: false
+      },
+      apps: [
+        {
+          id: 'managed-app-003',
+          name: 'Xcode',
+          bundleId: 'com.apple.dt.Xcode',
+          status: 'installed',
+          source: 'mdm',
+          lastUpdate: new Date(Date.now() - 1209600000).toISOString() // 14 days ago
+        },
+        {
+          id: 'managed-app-004',
+          name: 'Microsoft Office',
+          bundleId: 'com.microsoft.office',
+          status: 'installed',
+          source: 'mdm',
+          lastUpdate: new Date(Date.now() - 2592000000).toISOString() // 30 days ago
+        }
+      ]
     },
     
     managedInstalls: {
@@ -242,11 +406,46 @@ const deviceDatabase: Record<string, any> = {
       nextRun: new Date(Date.now() + 10800000).toISOString(), // 3 hours from now
       status: 'Warning',
       config: {
-        munki_repo_url: 'https://munki.company.com/repo',
-        client_identifier: 'engineering-mac',
-        managed_installs_dir: '/Library/Managed Installs',
-        log_file: '/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log',
-        install_apple_software_updates: false
+        type: 'munki',
+        version: '6.2.0',
+        // UI expects these specific property names
+        softwareRepoURL: 'https://munki.ecuad.ca/deployment',
+        manifest: 'Staff/IT/AlexChen',
+        runType: 'auto',
+        lastRun: new Date(Date.now() - 10800000).toISOString(),
+        duration: '3m 12s',
+        // Based on your provided Munki config - original property names for reference
+        SoftwareRepoURL: 'https://munki.ecuad.ca/deployment',
+        ClientIdentifier: 'Staff/IT/AlexChen',
+        ManagedInstallDir: '/Library/Managed Installs',
+        LogFile: '/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log',
+        LoggingLevel: 1,
+        InstallAppleSoftwareUpdates: false,
+        AppleSoftwareUpdatesOnly: false,
+        LastCheckDate: new Date(Date.now() - 10800000).toISOString(),
+        LastCheckResult: 1,
+        PendingUpdateCount: 0,
+        AggressiveUpdateNotificationDays: 14,
+        DaysBetweenNotifications: 1,
+        UseNotificationCenterDays: 3,
+        SuppressUserNotification: true,
+        PackageVerificationMode: 'hash',
+        FollowHTTPRedirects: 'none',
+        EmulateProfileSupport: false,
+        IgnoreMiddleware: false,
+        IgnoreSystemProxies: false,
+        InstallRequiresLogout: false,
+        LogToSyslog: false,
+        OldestUpdateDays: 0,
+        PerformAuthRestarts: false,
+        ShowOptionalInstallsForHigherOSVersions: false,
+        SoftwareUpdateServerURL: '',
+        SuppressAutoInstall: false,
+        SuppressLoginwindowInstall: false,
+        SuppressStopButtonOnInstall: false,
+        UnattendedAppleUpdates: false,
+        UseClientCertificate: false,
+        UseClientCertificateCNAsClientIdentifier: false
       },
       messages: {
         errors: [],
@@ -391,7 +590,21 @@ const deviceDatabase: Record<string, any> = {
       gatekeeper: { enabled: true, status: 'Active' },
       sip: { enabled: true, status: 'Enabled' },
       xprotect: { enabled: true, status: 'Outdated' },
-      automaticUpdates: { enabled: true, status: 'Enabled' }
+      automaticUpdates: { enabled: true, status: 'Enabled' },
+      edr: { installed: false, name: null, status: 'Not Installed', version: null }
+    },
+    
+    // MDM Information
+    mdm: {
+      enrolled: false,
+      enrolled_via_dep: false,
+      server_url: null,
+      user_approved: null,
+      organization: null,
+      department: null,
+      profiles: [],
+      restrictions: null,
+      apps: []
     },
     
     managedInstalls: {
@@ -400,11 +613,31 @@ const deviceDatabase: Record<string, any> = {
       nextRun: new Date(Date.now() + 43200000).toISOString(), // 12 hours from now
       status: 'Error',
       config: {
-        munki_repo_url: 'https://munki.company.com/repo',
-        client_identifier: 'executive-mac',
-        managed_installs_dir: '/Library/Managed Installs',
-        log_file: '/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log',
-        install_apple_software_updates: true
+        type: 'munki',
+        version: '6.1.8',
+        // UI expects these specific property names
+        softwareRepoURL: 'https://munki.ecuad.ca/deployment',
+        manifest: 'Staff/Executive/SarahKim',
+        runType: 'auto',
+        lastRun: new Date(Date.now() - 86400000).toISOString(),
+        duration: '1m 28s',
+        // Based on your provided Munki config - original property names for reference
+        SoftwareRepoURL: 'https://munki.ecuad.ca/deployment',
+        ClientIdentifier: 'Staff/Executive/SarahKim',
+        ManagedInstallDir: '/Library/Managed Installs',
+        LogFile: '/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log',
+        LoggingLevel: 1,
+        InstallAppleSoftwareUpdates: true,
+        AppleSoftwareUpdatesOnly: false,
+        LastCheckDate: new Date(Date.now() - 86400000).toISOString(),
+        LastCheckResult: 0,
+        PendingUpdateCount: 1,
+        AggressiveUpdateNotificationDays: 14,
+        DaysBetweenNotifications: 1,
+        UseNotificationCenterDays: 3,
+        SuppressUserNotification: false,
+        PackageVerificationMode: 'hash',
+        FollowHTTPRedirects: 'none'
       },
       messages: {
         errors: [
@@ -489,9 +722,18 @@ const deviceDatabase: Record<string, any> = {
     lastEventTime: new Date(Date.now() - 3600000).toISOString(),
     
     processor: 'Intel Core i7-11700 @ 2.50GHz',
+    processorSpeed: '2.50 GHz',
+    cores: 8,
     memory: '32 GB DDR4',
+    availableRAM: '15.4 GB',
+    memorySlots: '4 slots (2 occupied)',
     storage: '1 TB NVMe SSD',
+    availableStorage: '220 GB',
+    storageType: 'NVMe SSD',
     graphics: 'Intel UHD Graphics 750',
+    vram: '128 MB',
+    resolution: '2560 x 1440',
+    architecture: 'x64',
     diskUtilization: 78,
     memoryUtilization: 52,
     cpuUtilization: 15,
@@ -528,7 +770,71 @@ const deviceDatabase: Record<string, any> = {
       firewall: { enabled: true, status: 'Active' },
       uac: { enabled: true, status: 'Enabled' },
       windowsUpdates: { enabled: true, status: 'Up to date' },
-      smartScreen: { enabled: true, status: 'Active' }
+      smartScreen: { enabled: true, status: 'Active' },
+      tpm: { enabled: true, status: 'Ready', version: '2.0' },
+      edr: { installed: true, name: 'Microsoft Defender for Endpoint', status: 'Active', version: '4.18.2401.5' }
+    },
+    
+    // MDM Information (Windows - Intune)
+    mdm: {
+      enrolled: true,
+      enrolled_via_dep: false, // Windows uses Autopilot instead of DEP
+      server_url: 'https://manage.microsoft.com',
+      user_approved: true,
+      organization: 'Emily Carr University',
+      department: 'Accounting',
+      profiles: [
+        {
+          id: 'intune-wifi-001',
+          name: 'Corporate Wi-Fi',
+          description: 'Wi-Fi configuration for domain network',
+          type: 'Wi-Fi',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 2592000000).toISOString() // 30 days ago
+        },
+        {
+          id: 'intune-compliance-001',
+          name: 'Compliance Policy',
+          description: 'Device compliance requirements',
+          type: 'Compliance',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 1296000000).toISOString() // 15 days ago
+        },
+        {
+          id: 'intune-bitlocker-001',
+          name: 'BitLocker Encryption',
+          description: 'Disk encryption configuration',
+          type: 'Security',
+          status: 'Installed',
+          lastModified: new Date(Date.now() - 5184000000).toISOString() // 60 days ago
+        }
+      ],
+      restrictions: {
+        app_installation: 'restricted',
+        camera_disabled: false,
+        screen_recording_disabled: false,
+        system_preferences_disabled: true,
+        touch_id_disabled: false,
+        siri_disabled: true
+      },
+      apps: [
+        {
+          id: 'intune-app-001',
+          name: 'Microsoft Office 365',
+          bundleId: 'com.microsoft.office365',
+          status: 'installed',
+          source: 'mdm',
+          lastUpdate: new Date(Date.now() - 2592000000).toISOString() // 30 days ago
+        },
+        {
+          id: 'intune-app-002',
+          name: 'Microsoft Teams',
+          bundleId: 'com.microsoft.teams',
+          status: 'installed',
+          source: 'mdm',
+          lastUpdate: new Date(Date.now() - 604800000).toISOString() // 7 days ago
+        }
+      ]
     },
     
     managedInstalls: {
@@ -537,11 +843,33 @@ const deviceDatabase: Record<string, any> = {
       nextRun: new Date(Date.now() + 7200000).toISOString(), // 2 hours from now
       status: 'Warning',
       config: {
-        cimian_server_url: 'https://cimian.company.com/api',
-        client_identifier: 'accounting-ws',
-        managed_installs_dir: 'C:\\ProgramData\\Cimian\\ManagedInstalls',
-        log_file: 'C:\\ProgramData\\Cimian\\Logs\\CimianAgent.log',
-        install_windows_updates: true
+        type: 'cimian',
+        version: '2.8.1',
+        // UI expects these specific property names
+        softwareRepoURL: 'https://cimian.ecuad.ca/deployment',
+        manifest: 'Assigned/Staff/Accounting/B1105/JenniferAdams',
+        runType: 'manual',
+        lastRun: new Date(Date.now() - 14400000).toISOString(),
+        duration: '4m 15s',
+        // Based on your provided Cimian config - original property names for reference
+        SoftwareRepoURL: 'https://cimian.ecuad.ca/deployment',
+        ClientIdentifier: 'Assigned/Staff/Accounting/B1105/JenniferAdams',
+        CachePath: 'C:\\ProgramData\\ManagedInstalls\\cache',
+        CatalogsPath: 'C:\\ProgramData\\ManagedInstalls\\catalogs',
+        RepoPath: 'C:\\Users\\jadams\\DevOps\\Cimian\\deployment',
+        DefaultCatalog: 'Production',
+        DefaultArch: 'x64',
+        Catalogs: [],
+        LocalManifests: [],
+        CheckOnly: false,
+        Debug: false,
+        Verbose: false,
+        CloudProvider: 'none',
+        CloudBucket: '',
+        ForceBasicAuth: false,
+        OpenImportedYaml: true,
+        InstallPath: '',
+        LogLevel: ''
       },
       messages: {
         errors: [],
@@ -641,9 +969,18 @@ const deviceDatabase: Record<string, any> = {
     lastEventTime: new Date(Date.now() - 600000).toISOString(),
     
     processor: 'Intel Core i7-1365U @ 1.30GHz',
+    processorSpeed: '1.30 GHz',
+    cores: 10,
     memory: '16 GB LPDDR5',
+    availableRAM: '9.8 GB',
+    memorySlots: 'Soldered (non-upgradeable)',
     storage: '512 GB NVMe SSD',
+    availableStorage: '280 GB',
+    storageType: 'NVMe SSD',
     graphics: 'Intel Iris Xe Graphics',
+    vram: 'Shared',
+    resolution: '2880 x 1800',
+    architecture: 'x64',
     diskUtilization: 45,
     memoryUtilization: 38,
     cpuUtilization: 22,
@@ -680,7 +1017,9 @@ const deviceDatabase: Record<string, any> = {
       firewall: { enabled: true, status: 'Active' },
       uac: { enabled: true, status: 'Enabled' },
       windowsUpdates: { enabled: true, status: 'Up to date' },
-      smartScreen: { enabled: true, status: 'Active' }
+      smartScreen: { enabled: true, status: 'Active' },
+      tpm: { enabled: true, status: 'Ready', version: '2.0' },
+      edr: { installed: true, name: 'CrowdStrike Falcon', status: 'Active', version: '7.18.15105' }
     },
     
     managedInstalls: {
@@ -689,11 +1028,31 @@ const deviceDatabase: Record<string, any> = {
       nextRun: new Date(Date.now() + 12600000).toISOString(), // 3.5 hours from now
       status: 'Success',
       config: {
-        cimian_server_url: 'https://cimian.company.com/api',
-        client_identifier: 'sales-laptop',
-        managed_installs_dir: 'C:\\ProgramData\\Cimian\\ManagedInstalls',
-        log_file: 'C:\\ProgramData\\Cimian\\Logs\\CimianAgent.log',
-        install_windows_updates: true
+        type: 'cimian',
+        version: '2.8.2',
+        // UI expects these specific property names
+        softwareRepoURL: 'https://cimian.ecuad.ca/deployment',
+        manifest: 'Assigned/Staff/Sales/B1207/MarcusThompson',
+        runType: 'auto',
+        lastRun: new Date(Date.now() - 1800000).toISOString(),
+        duration: '2m 38s',
+        // Based on your provided Cimian config - original property names for reference
+        SoftwareRepoURL: 'https://cimian.ecuad.ca/deployment',
+        ClientIdentifier: 'Assigned/Staff/Sales/B1207/MarcusThompson',
+        CachePath: 'C:\\ProgramData\\ManagedInstalls\\cache',
+        CatalogsPath: 'C:\\ProgramData\\ManagedInstalls\\catalogs',
+        RepoPath: 'C:\\Users\\mthompson\\DevOps\\Cimian\\deployment',
+        DefaultCatalog: 'Production',
+        DefaultArch: 'x64',
+        CheckOnly: false,
+        Debug: false,
+        Verbose: false,
+        CloudProvider: 'none',
+        ForceBasicAuth: false,
+        OpenImportedYaml: true,
+        InstallPath: '',
+        CloudBucket: '',
+        LogLevel: ''
       },
       messages: {
         errors: [],
@@ -824,7 +1183,9 @@ const deviceDatabase: Record<string, any> = {
       firewall: { enabled: true, status: 'Active' },
       uac: { enabled: false, status: 'Disabled' },
       windowsUpdates: { enabled: false, status: 'Manual' },
-      smartScreen: { enabled: false, status: 'Disabled' }
+      smartScreen: { enabled: false, status: 'Disabled' },
+      tpm: { enabled: true, status: 'Ready', version: '2.0' },
+      edr: { installed: false, name: null, status: 'Not Installed', version: null }
     },
     
     managedInstalls: {
@@ -833,11 +1194,31 @@ const deviceDatabase: Record<string, any> = {
       nextRun: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
       status: 'Error',
       config: {
-        cimian_server_url: 'https://cimian.company.com/api',
-        client_identifier: 'it-workstation',
-        managed_installs_dir: 'C:\\ProgramData\\Cimian\\ManagedInstalls',
-        log_file: 'C:\\ProgramData\\Cimian\\Logs\\CimianAgent.log',
-        install_windows_updates: false
+        type: 'cimian',
+        version: '2.7.9',
+        // UI expects these specific property names
+        softwareRepoURL: 'https://cimian.ecuad.ca/deployment',
+        manifest: 'Assigned/Staff/IT/B1115/RyanMartinez',
+        runType: 'manual',
+        lastRun: new Date(Date.now() - 21600000).toISOString(),
+        duration: '8m 42s',
+        // Based on your provided Cimian config - original property names for reference
+        SoftwareRepoURL: 'https://cimian.ecuad.ca/deployment',
+        ClientIdentifier: 'Assigned/Staff/IT/B1115/RyanMartinez',
+        CachePath: 'C:\\ProgramData\\ManagedInstalls\\cache',
+        CatalogsPath: 'C:\\ProgramData\\ManagedInstalls\\catalogs',
+        RepoPath: 'C:\\Users\\rmartinez\\DevOps\\Cimian\\deployment',
+        DefaultCatalog: 'Development',
+        DefaultArch: 'x64',
+        CheckOnly: false,
+        Debug: true,
+        Verbose: true,
+        CloudProvider: 'none',
+        ForceBasicAuth: false,
+        OpenImportedYaml: true,
+        InstallPath: '',
+        CloudBucket: '',
+        LogLevel: 'debug'
       },
       messages: {
         errors: [

@@ -23,7 +23,7 @@ import EventsWidgetModule from './widgets/EventsModule'
  * Initialize core modules
  */
 export async function initializeCoreModules(): Promise<void> {
-  console.log('🚀 Initializing Seemianki modules...')
+  console.log('🚀 Initializing Reportmate modules...')
   
   try {
     // Register core modules
@@ -125,8 +125,8 @@ export function getModuleSourcesFromConfig(): string[] {
   
   // Example sources that could be configured:
   // - '/modules/custom/' (local directory)
-  // - 'https://modules.seemianki.com/registry.json' (remote registry)
-  // - 'https://cdn.jsdelivr.net/npm/@seemianki/modules@latest/' (CDN)
+  // - 'https://modules.reportmate.com/registry.json' (remote registry)
+  // - 'https://cdn.jsdelivr.net/npm/@reportmate/modules@latest/' (CDN)
   
   return []
 }

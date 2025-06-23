@@ -40,7 +40,7 @@ export abstract class BaseModule {
    * Get module configuration
    */
   getConfig<T = any>(): T {
-    const stored = localStorage.getItem(`seemianki_module_config_${this.manifest.id}`)
+    const stored = localStorage.getItem(`reportmate_module_config_${this.manifest.id}`)
     return stored ? JSON.parse(stored) : ({} as T)
   }
   
@@ -48,7 +48,7 @@ export abstract class BaseModule {
    * Set module configuration
    */
   setConfig<T = any>(config: T): void {
-    localStorage.setItem(`seemianki_module_config_${this.manifest.id}`, JSON.stringify(config))
+    localStorage.setItem(`reportmate_module_config_${this.manifest.id}`, JSON.stringify(config))
   }
   
   /**

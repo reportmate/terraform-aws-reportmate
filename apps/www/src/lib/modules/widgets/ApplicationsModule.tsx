@@ -193,7 +193,7 @@ const ApplicationsModule = {
     name: 'Applications',
     version: '1.0.0',
     description: 'Display installed applications and application statistics',
-    author: 'Seemianki',
+    author: 'Reportmate',
     enabled: true,
     category: 'device',
     tags: ['applications', 'software', 'inventory'],
