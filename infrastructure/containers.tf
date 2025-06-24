@@ -45,9 +45,7 @@ resource "azurerm_container_app" "frontend" {
   template {
     container {
       name   = "frontend"
-      # TODO: Replace with actual image after building and pushing to ACR
-      # image  = "reportmateacr.azurecr.io/reportmate-frontend:${var.frontend_image_tag}"
-      image  = "mcr.microsoft.com/hello-world:latest"
+      image  = "reportmateacr.azurecr.io/reportmate-frontend:${var.frontend_image_tag}"
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -92,6 +90,14 @@ resource "azurerm_container_app" "frontend" {
     server   = azurerm_container_registry.acr.login_server
     identity = azurerm_user_assigned_identity.main.id
   }
+
+  # Ignore changes to container image since it's managed by deployment pipeline
+  # lifecycle {
+  #   ignore_changes = [
+  #     template[0].container[0].image,
+  #     template[0].revision_suffix
+  #   ]
+  # }
 }
 
 # Custom domain will be configured directly in the container app ingress configuration

@@ -56,6 +56,12 @@ resource "azurerm_postgresql_flexible_server" "pg" {
   authentication {
     password_auth_enabled = true
   }
+
+  lifecycle {
+    ignore_changes = [
+      administrator_password
+    ]
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_firewall_rule" "azure_services" {
@@ -132,7 +138,8 @@ resource "azurerm_linux_function_app" "func" {
       tags["hidden-link: /app-insights-resource-id"],
       app_settings["APPINSIGHTS_INSTRUMENTATIONKEY"],
       app_settings["APPLICATIONINSIGHTS_CONNECTION_STRING"],
-      app_settings["APPINSIGHTS_CONNECTION_STRING"]
+      app_settings["APPINSIGHTS_CONNECTION_STRING"],
+      app_settings["DATABASE_URL"]
     ]
   }
 }

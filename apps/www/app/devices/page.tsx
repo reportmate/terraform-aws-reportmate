@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { formatRelativeTime } from "../../src/lib/time"
 
 interface Device {
@@ -24,6 +25,15 @@ export default function DevicesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const searchParams = useSearchParams()
+
+  // Initialize search query from URL parameters
+  useEffect(() => {
+    const urlSearch = searchParams.get('search')
+    if (urlSearch) {
+      setSearchQuery(urlSearch)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -299,7 +309,7 @@ export default function DevicesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Fleet Devices
+                    Endpoints Fleet
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Manage and monitor all devices in your fleet
@@ -323,6 +333,9 @@ export default function DevicesPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Model
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Operating System
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Last Seen
@@ -360,13 +373,13 @@ export default function DevicesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {device.model}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {device.os}
-                          </div>
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {device.model}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {device.os}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
