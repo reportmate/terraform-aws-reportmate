@@ -17,23 +17,22 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Environment variables with defaults
-RESOURCE_GROUP="rg-reportmate-prod"
+RESOURCE_GROUP="Reportmate"
 LOCATION="Canada Central"
 DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 32)}
 IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 
-# Deployment control flags
-DEPLOY_INFRA=${DEPLOY_INFRA:-true}
-DEPLOY_CONTAINERS=${DEPLOY_CONTAINERS:-true}
-SETUP_DATABASE=${SETUP_DATABASE:-true}
-RUN_TESTS=${RUN_TESTS:-true}
+# Deployment control flags (default to false, set by command line flags)
+DEPLOY_INFRA=false
+DEPLOY_CONTAINERS=false
+SETUP_DATABASE=false
+RUN_TESTS=false
+SHOW_HELP=false
 
 # Detect pipeline mode (CI/CD environment)
 PIPELINE_MODE=false
 if [ ! -z "$GITHUB_ACTIONS" ] || [ ! -z "$AZURE_PIPELINES" ] || [ ! -z "$CI" ]; then
     PIPELINE_MODE=true
-    RUN_TESTS=false  # Skip interactive tests in CI/CD
-    SETUP_DATABASE=false  # Skip database setup in CI/CD
 fi
 
 # Azure authentication
@@ -41,15 +40,127 @@ TENANT_ID=${AZURE_TENANT_ID:-}
 CLIENT_ID=${AZURE_CLIENT_ID:-}
 CLIENT_SECRET=${AZURE_CLIENT_SECRET:-}
 
-echo -e "${GREEN}🚀 Reportmate Unified Deployment${NC}"
-echo -e "${BLUE}Configuration:${NC}"
-echo "  Resource Group: $RESOURCE_GROUP"
-echo "  Location: $LOCATION"
-echo "  Image Tag: $IMAGE_TAG"
-echo "  Pipeline Mode: $PIPELINE_MODE"
-echo "  Deploy Infrastructure: $DEPLOY_INFRA"
-echo "  Deploy Containers: $DEPLOY_CONTAINERS"
-echo "  Setup Database: $SETUP_DATABASE"
+# =================================================================
+# COMMAND LINE ARGUMENT PARSING
+# =================================================================
+
+show_usage() {
+    echo "Reportmate Unified Deployment Script"
+    echo ""
+    echo "Usage: $0 [FLAGS] [OPTIONS]"
+    echo ""
+    echo "FLAGS:"
+    echo "  --full                      Run complete deployment (all flags enabled)"
+    echo "  --infra                     Deploy infrastructure with Terraform"
+    echo "  --containers                Build and push containers to ACR"
+    echo "  --database                  Setup database schema and initial data"
+    echo "  --test                      Run deployment verification tests"
+    echo "  -h, --help                  Show this help message"
+    echo ""
+    echo "OPTIONS:"
+    echo "  --resource-group <name>     Azure resource group name (default: rg-reportmate-prod)"
+    echo "  --location <location>       Azure region (default: Canada Central)"
+    echo "  --image-tag <tag>           Docker image tag (default: timestamp)"
+    echo "  --db-password <password>    Database password (default: auto-generated)"
+    echo ""
+    echo "EXAMPLES:"
+    echo "  $0 --full                           # Complete deployment"
+    echo "  $0 --containers                     # Only rebuild and push containers"
+    echo "  $0 --infra --database               # Deploy infrastructure and setup database"
+    echo "  $0 --containers --test              # Build containers and run tests"
+    echo "  $0 --infra --image-tag v1.2.3       # Deploy infra with specific image tag"
+    echo ""
+    echo "ENVIRONMENT VARIABLES:"
+    echo "  AZURE_TENANT_ID             Azure tenant ID for authentication"
+    echo "  AZURE_CLIENT_ID             Azure client ID for service principal"
+    echo "  AZURE_CLIENT_SECRET         Azure client secret for service principal"
+    echo "  DB_PASSWORD                 Database password (overrides --db-password)"
+    echo ""
+}
+
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --full)
+                DEPLOY_INFRA=true
+                DEPLOY_CONTAINERS=true
+                SETUP_DATABASE=true
+                RUN_TESTS=true
+                shift
+                ;;
+            --infra)
+                DEPLOY_INFRA=true
+                shift
+                ;;
+            --containers)
+                DEPLOY_CONTAINERS=true
+                shift
+                ;;
+            --database)
+                SETUP_DATABASE=true
+                shift
+                ;;
+            --test)
+                RUN_TESTS=true
+                shift
+                ;;
+            --resource-group)
+                RESOURCE_GROUP="$2"
+                shift 2
+                ;;
+            --location)
+                LOCATION="$2"
+                shift 2
+                ;;
+            --image-tag)
+                IMAGE_TAG="$2"
+                shift 2
+                ;;
+            --db-password)
+                DB_PASSWORD="$2"
+                shift 2
+                ;;
+            -h|--help)
+                SHOW_HELP=true
+                shift
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown argument: $1${NC}"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Show help if requested
+    if [ "$SHOW_HELP" = true ]; then
+        show_usage
+        exit 0
+    fi
+    
+    # Check if at least one action flag is set
+    if [ "$DEPLOY_INFRA" = false ] && [ "$DEPLOY_CONTAINERS" = false ] && [ "$SETUP_DATABASE" = false ] && [ "$RUN_TESTS" = false ]; then
+        echo -e "${RED}❌ No deployment actions specified${NC}"
+        echo "Use --help to see available options, or --full for complete deployment"
+        exit 1
+    fi
+}
+
+show_configuration() {
+    echo -e "${GREEN}🚀 Reportmate Unified Deployment${NC}"
+    echo -e "${BLUE}Configuration:${NC}"
+    echo "  Resource Group: $RESOURCE_GROUP"
+    echo "  Location: $LOCATION"
+    echo "  Image Tag: $IMAGE_TAG"
+    echo "  Pipeline Mode: $PIPELINE_MODE"
+    echo ""
+    echo -e "${BLUE}Deployment Actions:${NC}"
+    echo "  Deploy Infrastructure: $([ "$DEPLOY_INFRA" = true ] && echo "✅ YES" || echo "❌ NO")"
+    echo "  Deploy Containers: $([ "$DEPLOY_CONTAINERS" = true ] && echo "✅ YES" || echo "❌ NO")"
+    echo "  Setup Database: $([ "$SETUP_DATABASE" = true ] && echo "✅ YES" || echo "❌ NO")"
+    echo "  Run Tests: $([ "$RUN_TESTS" = true ] && echo "✅ YES" || echo "❌ NO")"
+    echo ""
+}
 
 # =================================================================
 # FUNCTIONS
@@ -181,12 +292,12 @@ build_and_push_containers() {
     
     # Login to ACR (skip in pipeline if already authenticated)
     if [ "$PIPELINE_MODE" = false ]; then
-        echo -e "${YELLOW}� Authenticating with Azure Container Registry...${NC}"
+        echo -e "${YELLOW}🔐 Authenticating with Azure Container Registry...${NC}"
         az acr login --name $ACR_NAME
     fi
     
     # Build and push frontend
-    echo -e "${YELLOW}�️  Building frontend container...${NC}"
+    echo -e "${YELLOW}🏗️  Building frontend container...${NC}"
     cd apps/www
     
     docker build \
@@ -196,9 +307,11 @@ build_and_push_containers() {
         .
     
     docker tag reportmate-frontend:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-frontend:$IMAGE_TAG
+    docker tag reportmate-frontend:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-frontend:latest
     
     echo -e "${YELLOW}📤 Pushing frontend to ACR...${NC}"
     docker push $ACR_LOGIN_SERVER/reportmate-frontend:$IMAGE_TAG
+    docker push $ACR_LOGIN_SERVER/reportmate-frontend:latest
     
     cd ../..
     
@@ -212,9 +325,11 @@ build_and_push_containers() {
         .
     
     docker tag reportmate-functions:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-functions:$IMAGE_TAG
+    docker tag reportmate-functions:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-functions:latest
     
     echo -e "${YELLOW}📤 Pushing functions to ACR...${NC}"
     docker push $ACR_LOGIN_SERVER/reportmate-functions:$IMAGE_TAG
+    docker push $ACR_LOGIN_SERVER/reportmate-functions:latest
     
     cd ..
     
@@ -240,8 +355,13 @@ update_container_apps() {
 }
 
 setup_database() {
-    if [ "$SETUP_DATABASE" != true ] || [ "$PIPELINE_MODE" = true ]; then
+    if [ "$SETUP_DATABASE" != true ]; then
         echo -e "${YELLOW}⏭️  Skipping database setup${NC}"
+        return 0
+    fi
+    
+    if [ "$PIPELINE_MODE" = true ]; then
+        echo -e "${YELLOW}⚠️  Skipping database setup in pipeline mode${NC}"
         return 0
     fi
     
@@ -257,8 +377,13 @@ setup_database() {
 }
 
 run_deployment_tests() {
-    if [ "$RUN_TESTS" != true ] || [ "$PIPELINE_MODE" = true ]; then
+    if [ "$RUN_TESTS" != true ]; then
         echo -e "${YELLOW}⏭️  Skipping deployment tests${NC}"
+        return 0
+    fi
+    
+    if [ "$PIPELINE_MODE" = true ]; then
+        echo -e "${YELLOW}⚠️  Skipping interactive tests in pipeline mode${NC}"
         return 0
     fi
     
@@ -340,24 +465,21 @@ display_summary() {
 # =================================================================
 
 main() {
-    # Check for help flag
-    if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-        echo "Reportmate Unified Deployment Script"
+    # Parse command line arguments
+    parse_arguments "$@"
+    
+    # Show configuration
+    show_configuration
+    
+    # Confirm deployment in interactive mode
+    if [ "$PIPELINE_MODE" = false ]; then
+        echo -e "${YELLOW}Do you want to proceed with the deployment? (y/N)${NC}"
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            echo -e "${BLUE}Deployment cancelled.${NC}"
+            exit 0
+        fi
         echo ""
-        echo "Usage: $0 [options]"
-        echo ""
-        echo "Environment Variables:"
-        echo "  DEPLOY_INFRA=false          Skip infrastructure deployment"
-        echo "  DEPLOY_CONTAINERS=false     Skip container deployment"
-        echo "  SETUP_DATABASE=false        Skip database setup"
-        echo "  RUN_TESTS=false             Skip deployment tests"
-        echo "  DB_PASSWORD=<password>      Custom database password"
-        echo ""
-        echo "Examples:"
-        echo "  $0                          # Full deployment"
-        echo "  DEPLOY_INFRA=false $0       # Skip infrastructure, only containers"
-        echo "  DEPLOY_CONTAINERS=false $0  # Only deploy infrastructure"
-        exit 0
     fi
     
     # Execute deployment steps
