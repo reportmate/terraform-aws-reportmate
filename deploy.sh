@@ -19,6 +19,11 @@ NC='\033[0m' # No Color
 # Environment variables with defaults
 RESOURCE_GROUP="Reportmate"
 LOCATION="Canada Central"
+
+# Try to get DB_PASSWORD from terraform.tfvars first, then environment, then generate random
+if [ -z "$DB_PASSWORD" ] && [ -f "infrastructure/terraform.tfvars" ]; then
+    DB_PASSWORD=$(grep '^db_password' infrastructure/terraform.tfvars | cut -d'"' -f2 2>/dev/null || echo "")
+fi
 DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 32)}
 IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 
@@ -342,21 +347,24 @@ update_container_apps() {
     fi
     
     echo -e "${YELLOW}🔄 Updating container apps with new images...${NC}"
-        
-    echo -e "${BLUE}Updating frontend container app...${NC}"
-    az containerapp update \
-        --name "reportmate-frontend" \
-        --resource-group "$RESOURCE_GROUP" \
-        --image "$ACR_LOGIN_SERVER/reportmate-frontend:$IMAGE_TAG" \
-        --output none
     
-    echo -e "${BLUE}Updating function app container...${NC}"
-    # Function apps use a different approach - we'll update via deployment
-    # The function app will automatically pull the latest image on restart
-    az functionapp restart \
-        --name "reportmate-api" \
-        --resource-group "$RESOURCE_GROUP" \
-        --output none
+    cd infrastructure
+    
+    # Update container apps using Terraform with new image tags
+    echo -e "${BLUE}Updating infrastructure with new image tags...${NC}"
+    terraform apply -auto-approve \
+        -var="db_password=$DB_PASSWORD" \
+        -var="enable_pipeline_permissions=$PIPELINE_MODE" \
+        -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
+        -var="frontend_image_tag=$IMAGE_TAG" \
+        -var="functions_image_tag=$IMAGE_TAG"
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Container app update failed${NC}"
+        exit 1
+    fi
+    
+    cd ..
     
     echo -e "${GREEN}✅ Container apps updated!${NC}"
 }
