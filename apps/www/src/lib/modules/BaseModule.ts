@@ -72,7 +72,8 @@ export class ModuleLoader {
    */
   async loadFromUrl(url: string): Promise<BaseModule> {
     try {
-      const module = await import(url)
+      // Dynamic import with proper typing to reduce webpack warnings
+      const module = await import(/* webpackChunkName: "dynamic-module" */ url)
       const ModuleClass = module.default || module.Module
       
       if (!ModuleClass) {
