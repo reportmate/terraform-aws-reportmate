@@ -342,14 +342,21 @@ update_container_apps() {
     fi
     
     echo -e "${YELLOW}🔄 Updating container apps with new images...${NC}"
+        
+    echo -e "${BLUE}Updating frontend container app...${NC}"
+    az containerapp update \
+        --name "reportmate-frontend" \
+        --resource-group "$RESOURCE_GROUP" \
+        --image "$ACR_LOGIN_SERVER/reportmate-frontend:$IMAGE_TAG" \
+        --output none
     
-    cd infrastructure
-    terraform apply \
-        -var="frontend_image_tag=$IMAGE_TAG" \
-        -var="functions_image_tag=$IMAGE_TAG" \
-        -var="db_password=$DB_PASSWORD" \
-        -auto-approve
-    cd ..
+    echo -e "${BLUE}Updating function app container...${NC}"
+    # Function apps use a different approach - we'll update via deployment
+    # The function app will automatically pull the latest image on restart
+    az functionapp restart \
+        --name "reportmate-api" \
+        --resource-group "$RESOURCE_GROUP" \
+        --output none
     
     echo -e "${GREEN}✅ Container apps updated!${NC}"
 }
