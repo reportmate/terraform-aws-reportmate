@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
       args:
         - DOCKER_BUILD=true
+    image: reportmate:latest
     ports:
       - "3000:3000"
     environment:

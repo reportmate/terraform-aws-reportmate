@@ -34,7 +34,7 @@ variables:
   pythonVersion: '3.12'
   
   # Container Images
-  frontendImageName: 'reportmate-frontend'
+  frontendImageName: 'reportmate'
   functionsImageName: 'reportmate-functions'
 
 pool:
