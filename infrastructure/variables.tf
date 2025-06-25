@@ -23,7 +23,7 @@ variable "frontend_image_tag" {
 
 variable "functions_image_tag" {
   type        = string
-  description = "Docker image tag for the functions container"
+  description = "Docker image tag for the functions container (currently not used - functions use zip deployment)"
   default     = "latest"
 }
 

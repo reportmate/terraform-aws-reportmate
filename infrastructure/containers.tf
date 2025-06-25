@@ -45,7 +45,7 @@ resource "azurerm_container_app" "frontend" {
   template {
     container {
       name   = "frontend"
-      image  = "reportmateacr.azurecr.io/reportmate-frontend:${var.frontend_image_tag}"
+      image  = "${azurerm_container_registry.acr.login_server}/reportmate-frontend:${var.frontend_image_tag}"
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -91,31 +91,14 @@ resource "azurerm_container_app" "frontend" {
     identity = azurerm_user_assigned_identity.main.id
   }
 
-  # Ignore changes to container image since it's managed by deployment pipeline
-  # lifecycle {
-  #   ignore_changes = [
-  #     template[0].container[0].image,
-  #     template[0].revision_suffix
-  #   ]
-  # }
+  # Always use latest image - don't track image changes in Terraform
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+      template[0].revision_suffix
+    ]
+  }
 }
 
 # Custom domain will be configured directly in the container app ingress configuration
 # Azure will automatically provision a managed certificate when the custom domain is added
-
-# Outputs for Container Registry
-output "container_registry_login_server" {
-  value = azurerm_container_registry.acr.login_server
-}
-
-output "managed_identity_client_id" {
-  value = azurerm_user_assigned_identity.main.client_id
-}
-
-output "managed_identity_principal_id" {
-  value = azurerm_user_assigned_identity.main.principal_id
-}
-
-output "frontend_url" {
-  value = var.enable_custom_domain && var.custom_domain_name != "" ? "https://${var.custom_domain_name}" : "https://${azurerm_container_app.frontend.latest_revision_fqdn}"
-}

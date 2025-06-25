@@ -7,6 +7,13 @@
 # Data source to get current Azure client configuration
 data "azurerm_client_config" "current" {}
 
+# User-assigned managed identity for secure authentication
+resource "azurerm_user_assigned_identity" "main" {
+  name                = "reportmate-identity"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+}
+
 # =================================================================
 # SERVICE PRINCIPAL PERMISSIONS (for Azure DevOps Pipeline)
 # =================================================================
