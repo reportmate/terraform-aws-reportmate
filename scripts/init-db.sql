@@ -1,4 +1,4 @@
--- Database initialization for Reportmate
+-- Database initialization for ReportMate
 -- This file is automatically executed when PostgreSQL container starts
 
 -- Events table for storing all device events

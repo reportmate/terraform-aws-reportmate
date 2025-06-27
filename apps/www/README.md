@@ -1,4 +1,4 @@
-# Reportmate Web Dashboard
+# ReportMate Web Dashboard
 
 A Next.js-based real-time dashboard for monitoring fleet events via SignalR, inspired by the MunkiReport event module design.
 

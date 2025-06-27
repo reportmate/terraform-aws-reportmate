@@ -76,6 +76,7 @@ export default function ModulesManagementPage() {
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
+            {/* Brand and Back Navigation */}
             <div className="flex items-center gap-4">
               <Link
                 href="/dashboard"
@@ -84,13 +85,35 @@ export default function ModulesManagementPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span className="text-sm font-medium">Dashboard</span>
+                <span className="text-sm font-medium">Back to Dashboard</span>
               </Link>
               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Module Management
               </h1>
             </div>
+            
+            {/* Quick Navigation */}
+            <nav className="flex items-center gap-4">
+              <Link
+                href="/devices"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Devices
+              </Link>
+              <Link
+                href="/events"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Events
+              </Link>
+              <Link
+                href="/settings"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Settings
+              </Link>
+            </nav>
           </div>
         </div>
       </header>
@@ -195,7 +218,7 @@ export default function ModulesManagementPage() {
                       onClick={() => handleToggleModule(module.id)}
                       className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         registry.isEnabled(module.id)
-                          ? 'bg-red-600 hover:bg-red-700 text-white'
+                          ? 'bg-gray-400 hover:bg-gray-500 text-white dark:bg-gray-600 dark:hover:bg-gray-700'
                           : 'bg-green-600 hover:bg-green-700 text-white'
                       }`}
                     >
@@ -239,7 +262,7 @@ export default function ModulesManagementPage() {
                 Module Marketplace
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Discover and install new modules to extend Reportmate's functionality.
+                Discover and install new modules to extend ReportMate's functionality.
               </p>
             </div>
 

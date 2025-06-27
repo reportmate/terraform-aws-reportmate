@@ -1,7 +1,7 @@
 # =================================================================
 # RBAC and Permissions Configuration
 # This file defines all role assignments and permissions needed
-# for the Reportmate application to function securely
+# for the ReportMate application to function securely
 # =================================================================
 
 # Data source to get current Azure client configuration

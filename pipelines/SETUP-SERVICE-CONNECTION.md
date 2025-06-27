@@ -1,6 +1,6 @@
 # 🔐 Azure DevOps Service Connection Setup
 
-Quick reference for setting up Azure service connections for Reportmate CI/CD pipelines.
+Quick reference for setting up Azure service connections for ReportMate CI/CD pipelines.
 
 > **Note**: For complete deployment instructions, see [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)
 
@@ -32,7 +32,7 @@ Update your pipeline YAML:
 ```yaml
 variables:
   azureSubscription: 'reportmate-azure-connection'  # Your connection name
-  resourceGroupName: 'Reportmate'
+  resourceGroupName: 'ReportMate'
 ```
 
 ## ✅ Required Permissions
@@ -56,7 +56,7 @@ The service principal automatically gets these permissions via **Terraform RBAC*
 ```bash
 # Quick test
 az account show
-az group show --name Reportmate
+az group show --name ReportMate
 ```
 
 ## 🔧 Troubleshooting

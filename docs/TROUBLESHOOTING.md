@@ -1,6 +1,6 @@
-# 🆘 Reportmate Troubleshooting Guide
+# 🆘 ReportMate Troubleshooting Guide
 
-Comprehensive troubleshooting and support guide for Reportmate deployment and operation.
+Comprehensive troubleshooting and support guide for ReportMate deployment and operation.
 
 ## 🚨 Common Issues & Solutions
 
@@ -83,7 +83,7 @@ az storage container create \
 **Solutions**:
 ```bash
 # Import existing resources
-terraform import azurerm_resource_group.rg /subscriptions/{subscription-id}/resourceGroups/Reportmate
+terraform import azurerm_resource_group.rg /subscriptions/{subscription-id}/resourceGroups/ReportMate
 
 # Or destroy and recreate
 terraform destroy -auto-approve
@@ -101,10 +101,10 @@ terraform apply -target=azurerm_container_registry.acr
 **Solutions**:
 ```bash
 # Verify managed identity exists
-az identity show --name reportmate-identity --resource-group Reportmate
+az identity show --name reportmate-identity --resource-group ReportMate
 
 # Check if role assignment already exists
-az role assignment list --assignee $(az identity show --name reportmate-identity --resource-group Reportmate --query principalId -o tsv)
+az role assignment list --assignee $(az identity show --name reportmate-identity --resource-group ReportMate --query principalId -o tsv)
 
 # Wait for Azure AD propagation (can take 5-10 minutes)
 # Then retry Terraform apply
@@ -128,7 +128,7 @@ az acr login --name reportmateacr
 
 # Check ACR permissions
 az role assignment list \
-  --scope "/subscriptions/{subscription}/resourceGroups/Reportmate/providers/Microsoft.ContainerRegistry/registries/reportmateacr"
+  --scope "/subscriptions/{subscription}/resourceGroups/ReportMate/providers/Microsoft.ContainerRegistry/registries/reportmateacr"
 
 # Enable admin access temporarily (for debugging only)
 az acr update --name reportmateacr --admin-enabled true
@@ -231,19 +231,19 @@ jobs:
 # Check container app status
 az containerapp show \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "properties.provisioningState"
 
 # View container logs
 az containerapp logs show \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --tail 50
 
 # Check container app revisions
 az containerapp revision list \
   --name reportmate-frontend \
-  --resource-group Reportmate
+  --resource-group ReportMate
 ```
 
 #### "Container app can't pull images"
@@ -254,8 +254,8 @@ az containerapp revision list \
 ```bash
 # Verify managed identity has AcrPull role
 az role assignment list \
-  --assignee $(az identity show --name reportmate-identity --resource-group Reportmate --query principalId -o tsv) \
-  --scope $(az acr show --name reportmateacr --resource-group Reportmate --query id -o tsv)
+  --assignee $(az identity show --name reportmate-identity --resource-group ReportMate --query principalId -o tsv) \
+  --scope $(az acr show --name reportmateacr --resource-group ReportMate --query id -o tsv)
 
 # Test image pull manually
 az acr login --name reportmateacr
@@ -271,17 +271,17 @@ docker pull reportmateacr.azurecr.io/reportmate-frontend:latest
 # Check container app environment
 az containerapp env show \
   --name reportmate-env \
-  --resource-group Reportmate
+  --resource-group ReportMate
 
 # Verify ingress configuration
 az containerapp ingress show \
   --name reportmate-frontend \
-  --resource-group Reportmate
+  --resource-group ReportMate
 
 # Test internal connectivity
 az containerapp exec \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --command "/bin/sh"
 ```
 
@@ -298,18 +298,18 @@ az containerapp exec \
 # Check function app status
 az functionapp show \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "state"
 
 # View function app logs
 az functionapp logs tail \
   --name reportmate-api \
-  --resource-group Reportmate
+  --resource-group ReportMate
 
 # Check function app configuration
 az functionapp config appsettings list \
   --name reportmate-api \
-  --resource-group Reportmate
+  --resource-group ReportMate
 ```
 
 #### "Function app runtime errors"
@@ -321,13 +321,13 @@ az functionapp config appsettings list \
 # Check Python runtime version
 az functionapp config show \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "pythonVersion"
 
 # Verify required environment variables
 az functionapp config appsettings show \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --setting-names "DATABASE_URL" "EVENTS_CONNECTION"
 
 # Test function locally
@@ -348,7 +348,7 @@ func start --python
 # Check PostgreSQL server status
 az postgres flexible-server show \
   --name reportmate-db \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "state"
 
 # Test database connectivity
@@ -360,7 +360,7 @@ az postgres flexible-server connect \
 # Check firewall rules
 az postgres flexible-server firewall-rule list \
   --name reportmate-db \
-  --resource-group Reportmate
+  --resource-group ReportMate
 ```
 
 #### "Database schema issues"
@@ -393,7 +393,7 @@ psql $DATABASE_URL -c "\dt"
 # Check Web PubSub service
 az webpubsub show \
   --name reportmate-signalr \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "provisioningState"
 
 # Test negotiation endpoint
@@ -402,7 +402,7 @@ curl https://reportmate-api.azurewebsites.net/api/negotiate?device=test
 # Check Web PubSub connection string
 az functionapp config appsettings show \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --setting-names "EVENTS_CONNECTION"
 ```
 
@@ -415,7 +415,7 @@ az functionapp config appsettings show \
 # Check frontend container logs
 az containerapp logs show \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --tail 100
 
 # Test local development
@@ -426,7 +426,7 @@ pnpm dev
 # Check environment variables
 az containerapp show \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "properties.template.containers[0].env"
 ```
 
@@ -453,7 +453,7 @@ az storage queue peek \
 # Verify function app logs
 az functionapp logs tail \
   --name reportmate-api \
-  --resource-group Reportmate
+  --resource-group ReportMate
 ```
 
 #### "API returns 500 errors"
@@ -469,7 +469,7 @@ az functionapp logs tail \
 # Check function-specific logs
 az functionapp logs show \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --function-name ingest
 
 # Test individual functions
@@ -498,13 +498,13 @@ curl https://reportmate-api.azurewebsites.net/api/ingest -X POST -d '{}'
 # Real-time logs
 az containerapp logs show \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --follow
 
 # Function app logs
 az functionapp logs tail \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --follow
 ```
 
@@ -514,7 +514,7 @@ az functionapp logs tail \
 # Connection statistics
 az postgres flexible-server show \
   --name reportmate-db \
-  --resource-group Reportmate
+  --resource-group ReportMate
 
 # Query performance (via Azure Portal)
 # PostgreSQL → Query Performance Insight
@@ -525,7 +525,7 @@ az postgres flexible-server show \
 ```bash
 # Check all resources in resource group
 az resource list \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --query "[].{Name:name, Type:type, Status:properties.provisioningState}"
 ```
 
@@ -595,13 +595,13 @@ terraform plan -target=azurerm_container_app.frontend
 # Rollback container app
 az containerapp revision set-active \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --revision [previous-revision-name]
 
 # Rollback function app
 az functionapp deployment source config-zip \
   --name reportmate-api \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --src [previous-deployment.zip]
 ```
 
@@ -611,12 +611,12 @@ az functionapp deployment source config-zip \
 # Restart container app
 az containerapp restart \
   --name reportmate-frontend \
-  --resource-group Reportmate
+  --resource-group ReportMate
 
 # Restart function app
 az functionapp restart \
   --name reportmate-api \
-  --resource-group Reportmate
+  --resource-group ReportMate
 ```
 
 ---
@@ -651,4 +651,4 @@ az functionapp restart \
 
 **Need more help?** Check the [deployment guide](./DEPLOYMENT.md) or [development guide](./DEVELOPMENT.md) for additional context.
 
-Your Reportmate deployment should be running smoothly with these troubleshooting steps! 🎉
+Your ReportMate deployment should be running smoothly with these troubleshooting steps! 🎉

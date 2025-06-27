@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🗄️  Setting up Reportmate database..."
+echo "🗄️  Setting up ReportMate database..."
 
 # Get database connection from environment or Terraform
 if [ -z "$DATABASE_URL" ]; then
@@ -72,4 +72,4 @@ psql "$DATABASE_URL" << 'EOF'
 EOF
 
 echo "✅ Database schema created successfully!"
-echo "🎉 Reportmate database is ready for deployment!"
+echo "🎉 ReportMate database is ready for deployment!"

@@ -1,4 +1,4 @@
-# Azure DevOps CI/CD Pipeline for Reportmate
+# Azure DevOps CI/CD Pipeline for ReportMate
 # Unified pipeline that handles infrastructure, containers, and applications
 
 trigger:
@@ -18,7 +18,7 @@ variables:
   azureSubscription: 'your-service-connection-name' # Update this
   
   # Resource Configuration
-  resourceGroupName: 'Reportmate'
+  resourceGroupName: 'ReportMate'
   containerRegistryName: 'reportmateacr'
   functionAppName: 'reportmate-api'
   frontendContainerAppName: 'reportmate-frontend'

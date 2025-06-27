@@ -1,4 +1,4 @@
-// Enhanced Prisma Schema for Reportmate - Production Normalized Approach
+// Enhanced Prisma Schema for ReportMate - Production Normalized Approach
 // This schema provides full normalization for better querying and analytics
 
 generator client {

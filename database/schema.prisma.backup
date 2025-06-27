@@ -1,4 +1,4 @@
-// Enhanced Prisma Schema for Reportmate
+// Enhanced Prisma Schema for ReportMate
 // This schema supports all the rich device data shown in the UI
 
 generator client {

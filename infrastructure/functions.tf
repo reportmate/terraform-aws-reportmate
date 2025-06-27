@@ -39,6 +39,10 @@ resource "azurerm_linux_function_app" "func" {
     APPINSIGHTS_CONNECTION_STRING          = azurerm_application_insights.ai.connection_string
     # Managed Identity configuration
     AZURE_CLIENT_ID                        = azurerm_user_assigned_identity.main.client_id
+    # Client authentication
+    CLIENT_PASSPHRASES                     = var.client_passphrases
+    ENABLE_MACHINE_GROUPS                  = var.enable_machine_groups
+    ENABLE_BUSINESS_UNITS                  = var.enable_business_units
   }
 
   lifecycle {

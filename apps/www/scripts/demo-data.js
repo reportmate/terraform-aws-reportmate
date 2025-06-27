@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Enhanced demo data generator for the improved Reportmate Dashboard
+// Enhanced demo data generator for the improved ReportMate Dashboard
 // Run with: node scripts/demo-improved.js
 
 const devices = [

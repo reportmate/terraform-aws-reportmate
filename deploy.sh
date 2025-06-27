@@ -1,7 +1,29 @@
 #!/bin/bash
 
 # Reportmate Unified Deployment Script
-# Run this script to deploy infrastructure and applications to Azure
+# Run this s    echo "OPTIONS:"
+    echo "  --env <environment>         Target environment: dev, prod, or both (default: prod)"
+    echo "  --resource-group <name>     Azure resource group name (default: ReportMate)"
+    echo "  --location <location>       Azure region (default: Canada Central)"
+    echo "  --image-tag <tag>           Docker image tag (default: timestamp)"
+    echo "  --db-password <password>    Database password (default: auto-generated)"
+    echo ""
+        echo -e "${BLUE}📊 Deployment Summary:${NC}"
+    echo "  ✅ Resource Group: $RESOURCE_GROUP"
+    echo "  ✅ Environment: $ENVIRONMENT"
+    echo "  ✅ Image Tag: $IMAGE_TAG"o "ENVIRONMENT OPTIONS:"
+    echo "  dev                         Deploy development container app only"
+    echo "  prod                        Deploy production container app only (default)"
+    echo "  both                        Deploy both development and production apps"
+    echo ""
+    echo "EXAMPLES:"
+    echo "  $0 --full                           # Complete deployment to production"
+    echo "  $0 --full --env dev                 # Complete deployment to development"
+    echo "  $0 --full --env both                # Deploy to both dev and prod"
+    echo "  $0 --containers --env dev           # Only rebuild and push to dev"
+    echo "  $0 --infra --database --env prod    # Deploy infrastructure and setup database for prod"
+    echo "  $0 --containers --test --env both   # Build containers for both envs and run tests"
+    echo "  $0 --infra --image-tag v1.2.3       # Deploy infra with specific image tag"loy infrastructure and applications to Azure
 
 set -e  # Exit on any error
 
@@ -109,6 +131,16 @@ parse_arguments() {
                 RUN_TESTS=true
                 shift
                 ;;
+            --env)
+                ENVIRONMENT="$2"
+                # Validate environment value
+                if [[ ! "$ENVIRONMENT" =~ ^(dev|prod|both)$ ]]; then
+                    echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
+                    echo "Environment must be 'dev', 'prod', or 'both'"
+                    exit 1
+                fi
+                shift 2
+                ;;
             --resource-group)
                 RESOURCE_GROUP="$2"
                 shift 2
@@ -156,8 +188,25 @@ show_configuration() {
     echo -e "${BLUE}Configuration:${NC}"
     echo "  Resource Group: $RESOURCE_GROUP"
     echo "  Location: $LOCATION"
+    echo "  Environment: $ENVIRONMENT"
     echo "  Image Tag: $IMAGE_TAG"
     echo "  Pipeline Mode: $PIPELINE_MODE"
+    echo ""
+    echo -e "${BLUE}Environment Targets:${NC}"
+    case $ENVIRONMENT in
+        "dev")
+            echo "  Development: ✅ YES"
+            echo "  Production: ❌ NO"
+            ;;
+        "prod")
+            echo "  Development: ❌ NO"
+            echo "  Production: ✅ YES"
+            ;;
+        "both")
+            echo "  Development: ✅ YES"
+            echo "  Production: ✅ YES"
+            ;;
+    esac
     echo ""
     echo -e "${BLUE}Deployment Actions:${NC}"
     echo "  Deploy Infrastructure: $([ "$DEPLOY_INFRA" = true ] && echo "✅ YES" || echo "❌ NO")"
@@ -245,10 +294,34 @@ deploy_infrastructure() {
         exit 1
     fi
     
+    # Set deployment flags based on environment
+    case $ENVIRONMENT in
+        "dev")
+            DEPLOY_DEV=true
+            DEPLOY_PROD=false
+            ;;
+        "prod")
+            DEPLOY_DEV=false
+            DEPLOY_PROD=true
+            ;;
+        "both")
+            DEPLOY_DEV=true
+            DEPLOY_PROD=true
+            ;;
+        *)
+            echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
+            exit 1
+            ;;
+    esac
+    
     # Plan deployment
-    echo -e "${BLUE}Planning Terraform deployment...${NC}"
+    echo -e "${BLUE}Planning Terraform deployment for environment: $ENVIRONMENT...${NC}"
     terraform plan \
         -var="db_password=$DB_PASSWORD" \
+        -var="environment=$ENVIRONMENT" \
+        -var="deploy_dev=$DEPLOY_DEV" \
+        -var="deploy_prod=$DEPLOY_PROD" \
+        -var="frontend_image_tag=$IMAGE_TAG" \
         -var="enable_pipeline_permissions=$PIPELINE_MODE" \
         -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
         -out=tfplan
@@ -346,14 +419,33 @@ update_container_apps() {
         return 0
     fi
     
-    echo -e "${YELLOW}🔄 Updating container apps with new images...${NC}"
+    echo -e "${YELLOW}🔄 Updating container apps with new images for environment: $ENVIRONMENT...${NC}"
     
     cd infrastructure
+    
+    # Set deployment flags based on environment
+    case $ENVIRONMENT in
+        "dev")
+            DEPLOY_DEV=true
+            DEPLOY_PROD=false
+            ;;
+        "prod")
+            DEPLOY_DEV=false
+            DEPLOY_PROD=true
+            ;;
+        "both")
+            DEPLOY_DEV=true
+            DEPLOY_PROD=true
+            ;;
+    esac
     
     # Update container apps using Terraform with new image tags
     echo -e "${BLUE}Updating infrastructure with new image tags...${NC}"
     terraform apply -auto-approve \
         -var="db_password=$DB_PASSWORD" \
+        -var="environment=$ENVIRONMENT" \
+        -var="deploy_dev=$DEPLOY_DEV" \
+        -var="deploy_prod=$DEPLOY_PROD" \
         -var="enable_pipeline_permissions=$PIPELINE_MODE" \
         -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
         -var="frontend_image_tag=$IMAGE_TAG" \
@@ -366,7 +458,7 @@ update_container_apps() {
     
     cd ..
     
-    echo -e "${GREEN}✅ Container apps updated!${NC}"
+    echo -e "${GREEN}✅ Container apps updated for environment: $ENVIRONMENT!${NC}"
 }
 
 setup_database() {

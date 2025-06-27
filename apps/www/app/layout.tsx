@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Reportmate Fleet Dashboard",
+  title: "ReportMate Fleet Dashboard",
   description: "Real-time fleet monitoring and event tracking",
 };
 

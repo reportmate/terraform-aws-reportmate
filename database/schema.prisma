@@ -1,4 +1,4 @@
-// Enhanced Prisma Schema for Reportmate - Production Normalized Approach
+// Enhanced Prisma Schema for ReportMate - Production Normalized Approach
 // This schema provides full normalization for better querying and analytics
 
 generator client {
@@ -8,6 +8,73 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Business Units for access control and organization
+model BusinessUnit {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  machineGroups      MachineGroup[]
+  businessUnitUsers  BusinessUnitUser[]
+  businessUnitGroups BusinessUnitGroup[]
+
+  @@map("business_units")
+}
+
+// Machine Groups for device organization and passphrase-based access
+model MachineGroup {
+  id               Int          @id @default(autoincrement())
+  name             String
+  description      String?
+  passphraseHash   String       @map("passphrase_hash") // SHA-256 hash of the group's passphrase
+  businessUnitId   Int?         @map("business_unit_id")
+  businessUnit     BusinessUnit? @relation(fields: [businessUnitId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  devices Device[]
+
+  @@index([passphraseHash])
+  @@index([businessUnitId])
+  @@map("machine_groups")
+}
+
+// Business Unit User assignments (many-to-many)
+model BusinessUnitUser {
+  id             Int          @id @default(autoincrement())
+  businessUnitId Int          @map("business_unit_id")
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id], onDelete: Cascade)
+  username       String
+  role           String       @default("user") // user, manager, archiver, admin
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([businessUnitId, username])
+  @@index([username])
+  @@map("business_unit_users")
+}
+
+// Business Unit Group assignments (many-to-many)
+model BusinessUnitGroup {
+  id             Int          @id @default(autoincrement())
+  businessUnitId Int          @map("business_unit_id")
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id], onDelete: Cascade)
+  groupName      String       @map("group_name")
+  role           String       @default("user") // user, manager, archiver, admin
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([businessUnitId, groupName])
+  @@index([groupName])
+  @@map("business_unit_groups")
 }
 
 // Core Device model - normalized approach
@@ -26,6 +93,10 @@ model Device {
   uptime        String?
   totalEvents   Int       @default(0) @map("total_events")
   lastEventTime DateTime? @map("last_event_time") @db.Timestamptz
+
+  // Machine Group assignment
+  machineGroupId Int?          @map("machine_group_id")
+  machineGroup   MachineGroup? @relation(fields: [machineGroupId], references: [id], onDelete: SetNull)
 
   // Basic hardware fields (most commonly queried)
   processor     String?
@@ -62,6 +133,7 @@ model Device {
   @@index([location])
   @@index([os])
   @@index([serialNumber])
+  @@index([machineGroupId])
   @@map("devices")
 }
 

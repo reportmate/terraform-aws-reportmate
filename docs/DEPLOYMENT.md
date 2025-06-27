@@ -1,6 +1,6 @@
-# 🚀 Reportmate Deployment Guide
+# 🚀 ReportMate Deployment Guide
 
-Complete deployment instructions for the Reportmate real-time security events dashboard.
+Complete deployment instructions for the ReportMate real-time security events dashboard.
 
 ## 📋 Prerequisites
 
@@ -41,7 +41,7 @@ Modern, scalable deployment using Azure Container Apps.
 
 2. **Configure Connection**
    - **Subscription**: Select your Azure subscription
-   - **Resource group**: Select `Reportmate` (or leave empty for subscription scope)
+   - **Resource group**: Select `ReportMate` (or leave empty for subscription scope)
    - **Service connection name**: `reportmate-azure-connection`
    - **Security**: ✅ Grant access permission to all pipelines
 
@@ -66,7 +66,7 @@ Modern, scalable deployment using Azure Container Apps.
    ```yaml
    variables:
      azureSubscription: 'reportmate-azure-connection'  # Your service connection name
-     resourceGroupName: 'Reportmate'
+     resourceGroupName: 'ReportMate'
      containerRegistryName: 'reportmateacr'
    ```
 
@@ -82,7 +82,7 @@ Modern, scalable deployment using Azure Container Apps.
 ```bash
 # Clone repository
 git clone <your-repo-url>
-cd Reportmate
+cd ReportMate
 
 # Set up environment
 cp .env.example .env
@@ -103,7 +103,7 @@ cd ..
 
 ```bash
 # Check resources
-az group show --name Reportmate
+az group show --name ReportMate
 
 # Test API endpoints
 curl https://reportmate-api.azurewebsites.net/api/negotiate?device=test
@@ -162,7 +162,7 @@ pnpm --version
 ```bash
 # Clone and setup
 git clone <your-repo-url>
-cd Reportmate
+cd ReportMate
 
 # Copy environment template
 cp .env.example .env
@@ -354,13 +354,13 @@ Monitor your deployment:
 # View container logs
 az containerapp logs show \
   --name reportmate-frontend \
-  --resource-group Reportmate \
+  --resource-group ReportMate \
   --follow
 
 # Function logs
 az functionapp logs tail \
   --name reportmate-api \
-  --resource-group Reportmate
+  --resource-group ReportMate
 ```
 
 ### Database Monitoring
@@ -369,7 +369,7 @@ az functionapp logs tail \
 # Connection statistics
 az postgres flexible-server show \
   --name reportmate-db \
-  --resource-group Reportmate
+  --resource-group ReportMate
 
 # Query performance
 # Available in Azure Portal → PostgreSQL → Monitoring
@@ -452,7 +452,7 @@ az acr list --query "[?name=='reportmateacr']"
 az acr login --name reportmateacr
 
 # Check permissions
-az role assignment list --scope "/subscriptions/{subscription}/resourceGroups/Reportmate/providers/Microsoft.ContainerRegistry/registries/reportmateacr"
+az role assignment list --scope "/subscriptions/{subscription}/resourceGroups/ReportMate/providers/Microsoft.ContainerRegistry/registries/reportmateacr"
 ```
 
 **"Terraform backend access denied"**
@@ -480,16 +480,16 @@ az storage container create --name tfstate --account-name [storage-account-name]
 **"Dashboard not loading"**
 ```bash
 # Check container status
-az containerapp show --name reportmate-frontend --resource-group Reportmate
+az containerapp show --name reportmate-frontend --resource-group ReportMate
 
 # View logs
-az containerapp logs show --name reportmate-frontend --resource-group Reportmate --tail 50
+az containerapp logs show --name reportmate-frontend --resource-group ReportMate --tail 50
 ```
 
 **"API not responding"**
 ```bash
 # Check function app status
-az functionapp show --name reportmate-api --resource-group Reportmate --query "state"
+az functionapp show --name reportmate-api --resource-group ReportMate --query "state"
 
 # Test function directly
 curl https://reportmate-api.azurewebsites.net/api/negotiate
@@ -504,7 +504,7 @@ curl https://reportmate-api.azurewebsites.net/api/negotiate
 
 ## 🎉 Deployment Complete!
 
-Your Reportmate deployment is now ready for enterprise device management:
+Your ReportMate deployment is now ready for enterprise device management:
 
 ### ✅ What You Have
 - **Scalable infrastructure** with auto-scaling Container Apps

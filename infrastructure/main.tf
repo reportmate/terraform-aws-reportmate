@@ -1,11 +1,11 @@
-# Reportmate Infrastructure
+# ReportMate Infrastructure
 
-# This file serves as the main entry point for the Reportmate infrastructure
+# This file serves as the main entry point for the ReportMate infrastructure
 # Components are organized into separate files for better maintainability:
 #
 # Resource Group
 resource "azurerm_resource_group" "rg" {
-  name     = "Reportmate"
+  name     = "ReportMate"
   location = "Canada Central"
   tags = {
     GitOps = "Terraformed"

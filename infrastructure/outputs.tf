@@ -58,6 +58,31 @@ output "container_registry_login_server" {
   value = azurerm_container_registry.acr.login_server
 }
 
+# Development Frontend URL
+output "frontend_dev_url" {
+  value = length(azurerm_container_app.frontend_dev) > 0 ? "https://${azurerm_container_app.frontend_dev[0].latest_revision_fqdn}" : null
+  description = "Development frontend URL (if deployed)"
+}
+
+# Production Frontend URL  
+output "frontend_prod_url" {
+  value = length(azurerm_container_app.frontend_prod) > 0 ? (
+    var.enable_custom_domain && var.custom_domain_name != "" ? 
+    "https://${var.custom_domain_name}" : 
+    "https://${azurerm_container_app.frontend_prod[0].latest_revision_fqdn}"
+  ) : null
+  description = "Production frontend URL (if deployed)"
+}
+
+# Legacy output for backward compatibility
 output "frontend_url" {
-  value = var.enable_custom_domain && var.custom_domain_name != "" ? "https://${var.custom_domain_name}" : "https://${azurerm_container_app.frontend.latest_revision_fqdn}"
+  value = length(azurerm_container_app.frontend_prod) > 0 ? (
+    var.enable_custom_domain && var.custom_domain_name != "" ? 
+    "https://${var.custom_domain_name}" : 
+    "https://${azurerm_container_app.frontend_prod[0].latest_revision_fqdn}"
+  ) : (length(azurerm_container_app.frontend_dev) > 0 ? 
+    "https://${azurerm_container_app.frontend_dev[0].latest_revision_fqdn}" : 
+    "No frontend deployed"
+  )
+  description = "Primary frontend URL (prod if available, otherwise dev)"
 }

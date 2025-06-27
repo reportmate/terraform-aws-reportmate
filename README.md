@@ -1,4 +1,4 @@
-# 🚀 Reportmate - Real-Time Security Events Dashboard
+# 🚀 ReportMate - Real-Time Security Events Dashboard
 
 [![Azure DevOps](https://img.shields.io/badge/Azure%20DevOps-Pipeline%20Ready-blue?logo=azuredevops)](./docs/DEPLOYMENT.md)
 [![Terraform](https://img.shields.io/badge/Infrastructure-Terraformed-purple?logo=terraform)](./infrastructure/)
@@ -31,7 +31,7 @@
 ```bash
 # Clone and setup
 git clone <your-repo>
-cd Reportmate
+cd ReportMate
 
 # Start local environment
 cp .env.example .env
@@ -95,6 +95,27 @@ azd up
 - **Local Development**: Complete Docker Compose environment
 - **RBAC Migration**: All permissions managed by Terraform (zero manual commands)
 
+## 🔥 Latest Updates
+
+### ✅ Modular System Migration Complete
+
+The ReportMate dashboard has been fully migrated to use the new modular plugin system:
+
+- **Dynamic Dashboard**: The main `/dashboard` now uses modular widgets that can be installed, enabled, and disabled at runtime
+- **Module Management**: Full lifecycle management UI at `/modules` and `/settings`
+- **Per-Repository Modules**: Each module (`reportmate-module-NAME`) is its own GitHub repository
+- **Runtime Discovery**: Automatic discovery of official and community modules
+- **Legacy Preserved**: Original static dashboard backed up for reference
+
+**Key Benefits:**
+- 🧩 **Extensible**: Add new widgets and functionality through modules
+- 🔄 **Dynamic**: Install/remove modules without code changes
+- 🏗️ **Distributed**: Each module can be maintained independently
+- 🌍 **Community**: 3rd parties can create and distribute modules
+- 🔒 **Secure**: Modules are sandboxed and validated before loading
+
+See [`docs/MODULE_SYSTEM.md`](./docs/MODULE_SYSTEM.md) for complete technical details.
+
 ## 🎮 Test Your Deployment
 
 Once deployed, test with your devices:
@@ -123,7 +144,7 @@ curl -X POST https://reportmate-api.azurewebsites.net/api/ingest \
 ## 📁 Project Structure
 
 ```text
-Reportmate/
+ReportMate/
 ├── apps/
 │   ├── www/                    # Next.js frontend dashboard
 │   ├── csharp/                 # C# client libraries

@@ -1,10 +1,10 @@
-# 🛠️ Reportmate Development Guide
+# 🛠️ ReportMate Development Guide
 
-Complete guide for developing and extending the Reportmate modular architecture.
+Complete guide for developing and extending the ReportMate modular architecture.
 
 ## 🏗️ Modular Architecture Overview
 
-Reportmate uses a plugin-based modular architecture inspired by MunkiReport, enabling easy extension and customization.
+ReportMate uses a plugin-based modular architecture inspired by MunkiReport, enabling easy extension and customization.
 
 ### Architecture Transformation
 
@@ -513,7 +513,7 @@ describe('YourModule', () => {
 ```bash
 # Clone repository
 git clone <repo-url>
-cd Reportmate
+cd ReportMate
 
 # Install dependencies
 cd apps/www

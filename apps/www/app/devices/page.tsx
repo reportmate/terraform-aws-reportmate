@@ -217,7 +217,7 @@ function DevicesPageContent() {
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
                   <img 
                     src="/reportmate-logo.png" 
-                    alt="Reportmate Logo" 
+                    alt="ReportMate Logo" 
                     className="w-full h-full object-contain"
                   />
                 </div>
