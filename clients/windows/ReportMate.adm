@@ -1,0 +1,88 @@
+# ReportMate Group Policy Administrative Template (ADMX)
+# This file defines Group Policy settings for ReportMate client configuration
+
+CLASS MACHINE
+
+CATEGORY !!ReportMate
+    CATEGORY !!ClientConfiguration
+        POLICY !!ServerUrl
+            KEYNAME "SOFTWARE\Policies\ReportMate"
+            EXPLAIN !!ServerUrl_Help
+            PART !!ServerUrl_Part EDITTEXT
+                VALUENAME "ServerUrl"
+                DEFAULT "https://reportmate-api.azurewebsites.net"
+                MAXLEN 255
+            END PART
+        END POLICY
+
+        POLICY !!Passphrase
+            KEYNAME "SOFTWARE\Policies\ReportMate"
+            EXPLAIN !!Passphrase_Help
+            PART !!Passphrase_Part EDITTEXT
+                VALUENAME "Passphrase"
+                MAXLEN 255
+            END PART
+        END POLICY
+
+        POLICY !!CollectionInterval
+            KEYNAME "SOFTWARE\Policies\ReportMate"
+            EXPLAIN !!CollectionInterval_Help
+            PART !!CollectionInterval_Part NUMERIC
+                VALUENAME "CollectionInterval"
+                DEFAULT 3600
+                MIN 300
+                MAX 86400
+                SPIN 300
+            END PART
+        END POLICY
+
+        POLICY !!EnableLogging
+            KEYNAME "SOFTWARE\Policies\ReportMate"
+            EXPLAIN !!EnableLogging_Help
+            VALUENAME "EnableLogging"
+            VALUEON NUMERIC 1
+            VALUEOFF NUMERIC 0
+        END POLICY
+
+        POLICY !!LogLevel
+            KEYNAME "SOFTWARE\Policies\ReportMate"
+            EXPLAIN !!LogLevel_Help
+            PART !!LogLevel_Part DROPDOWNLIST
+                VALUENAME "LogLevel"
+                ITEMLIST
+                    NAME !!LogLevel_Error VALUE NUMERIC 1
+                    NAME !!LogLevel_Warning VALUE NUMERIC 2
+                    NAME !!LogLevel_Info VALUE NUMERIC 3 DEFAULT
+                    NAME !!LogLevel_Debug VALUE NUMERIC 4
+                END ITEMLIST
+            END PART
+        END POLICY
+    END CATEGORY
+END CATEGORY
+
+[strings]
+ReportMate="ReportMate"
+ClientConfiguration="Client Configuration"
+
+ServerUrl="ReportMate Server URL"
+ServerUrl_Help="Specifies the URL of the ReportMate server where clients will send data. This should include the protocol (https://) and domain name. Example: https://reportmate-api.azurewebsites.net"
+ServerUrl_Part="Server URL:"
+
+Passphrase="Client Authentication Passphrase"
+Passphrase_Help="Specifies the passphrase required for client authentication. If this is not configured, the client will attempt to connect without authentication. The passphrase must match one of the passphrases configured on the ReportMate server."
+Passphrase_Part="Passphrase:"
+
+CollectionInterval="Data Collection Interval (seconds)"
+CollectionInterval_Help="Specifies how often the client should collect and send data to the ReportMate server, in seconds. Minimum value is 300 seconds (5 minutes), maximum is 86400 seconds (24 hours). Default is 3600 seconds (1 hour)."
+CollectionInterval_Part="Interval (seconds):"
+
+EnableLogging="Enable Client Logging"
+EnableLogging_Help="Enables logging of client operations to the Windows Event Log. When enabled, the client will log important events, errors, and status information to help with troubleshooting."
+
+LogLevel="Client Log Level"
+LogLevel_Help="Specifies the verbosity of client logging. Error logs only critical errors, Warning includes warnings, Info includes general information, and Debug includes detailed diagnostic information."
+LogLevel_Part="Log Level:"
+LogLevel_Error="Error"
+LogLevel_Warning="Warning" 
+LogLevel_Info="Information"
+LogLevel_Debug="Debug"
