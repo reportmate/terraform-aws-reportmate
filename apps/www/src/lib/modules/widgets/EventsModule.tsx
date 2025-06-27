@@ -257,7 +257,7 @@ const EventsModule = {
     id: 'events',
     name: 'Events',
     version: '1.0.0',
-    author: 'Reportmate',
+    author: 'ReportMate',
     description: 'Event tracking and activity monitoring widgets'
   } as ExtendedModuleManifest,
 

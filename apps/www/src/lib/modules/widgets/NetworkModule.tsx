@@ -439,7 +439,7 @@ export class NetworkModule extends EnhancedBaseModule {
     name: 'Network Module',
     version: '1.0.0',
     description: 'Displays comprehensive network information including connectivity, IP configuration, and wireless details',
-    author: 'Reportmate',
+    author: 'ReportMate',
     category: 'device',
     enabled: true,
     

@@ -304,7 +304,7 @@ const MDMModule = {
     name: 'MDM Management',
     version: '1.0.0',
     description: 'Display MDM enrollment status and management information',
-    author: 'Reportmate',
+    author: 'ReportMate',
     enabled: true,
     category: 'device',
     tags: ['mdm', 'management', 'enrollment', 'profiles', 'restrictions'],

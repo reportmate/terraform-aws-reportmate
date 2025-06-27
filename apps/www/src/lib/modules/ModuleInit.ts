@@ -23,7 +23,7 @@ import EventsWidgetModule from './widgets/EventsModule'
  * Initialize core modules
  */
 export async function initializeCoreModules(): Promise<void> {
-  console.log('🚀 Initializing Reportmate modules...')
+  console.log('🚀 Initializing ReportMate modules...')
   
   try {
     // Register core modules

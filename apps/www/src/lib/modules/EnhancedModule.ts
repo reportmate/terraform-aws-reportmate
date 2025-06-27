@@ -1,5 +1,5 @@
 /**
- * Enhanced Module System for Reportmate
+ * Enhanced Module System for ReportMate
  * 
  * This extends the existing module system to support:
  * - Modular data widgets/components

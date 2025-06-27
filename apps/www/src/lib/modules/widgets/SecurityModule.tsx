@@ -43,7 +43,7 @@ const SecurityOverviewWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
       <div className="grid grid-cols-3 gap-4">
         <div className="text-center">
           <div className={`text-lg font-bold mb-1 ${
-            security.filevault_status ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            security.filevault_status ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
           }`}>
             {security.filevault_status ? 'ON' : 'OFF'}
           </div>
@@ -52,7 +52,7 @@ const SecurityOverviewWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
         
         <div className="text-center">
           <div className={`text-lg font-bold mb-1 ${
-            security.firewall_state === 'On' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            security.firewall_state === 'On' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
           }`}>
             {security.firewall_state === 'On' ? 'ON' : 'OFF'}
           </div>
@@ -61,7 +61,7 @@ const SecurityOverviewWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
         
         <div className="text-center">
           <div className={`text-lg font-bold mb-1 ${
-            security.gatekeeper === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            security.gatekeeper === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
           }`}>
             {security.gatekeeper === 'Enabled' ? 'ON' : 'OFF'}
           </div>
@@ -90,7 +90,7 @@ const SystemSecurityWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
         <div>
           <label className="text-sm font-medium text-gray-600 dark:text-gray-400">System Integrity Protection</label>
           <p className={`text-sm font-semibold ${
-            security.sip === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            security.sip === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
           }`}>
             {security.sip}
           </p>
@@ -112,7 +112,7 @@ const SystemSecurityWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
         <div>
           <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Activation Lock</label>
           <p className={`text-sm font-semibold ${
-            security.activation_lock === 'Disabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            security.activation_lock === 'Disabled' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
           }`}>
             {security.activation_lock}
           </p>
@@ -150,7 +150,7 @@ const UserAccessWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
         <div>
           <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Root User</label>
           <p className={`text-sm font-semibold ${
-            security.root_user === 'Disabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            security.root_user === 'Disabled' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
           }`}>
             {security.root_user}
           </p>
@@ -227,7 +227,7 @@ const SecurityDetailsWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className={`text-2xl font-bold mb-1 ${
-              security.filevault_status ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              security.filevault_status ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
             }`}>
               {security.filevault_status ? 'Enabled' : 'Disabled'}
             </div>
@@ -236,7 +236,7 @@ const SecurityDetailsWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
           
           <div className="text-center">
             <div className={`text-2xl font-bold mb-1 ${
-              security.firewall_state === 'On' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              security.firewall_state === 'On' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
             }`}>
               {security.firewall_state || 'Unknown'}
             </div>
@@ -245,7 +245,7 @@ const SecurityDetailsWidget: React.FC<DeviceWidgetProps> = ({ device }) => {
           
           <div className="text-center">
             <div className={`text-2xl font-bold mb-1 ${
-              security.gatekeeper === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              security.gatekeeper === 'Enabled' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-300'
             }`}>
               {security.gatekeeper || 'Unknown'}
             </div>
@@ -270,7 +270,7 @@ const SecurityModule = {
     name: 'Security',
     version: '1.0.0',
     description: 'Display security status and compliance information',
-    author: 'Reportmate',
+    author: 'ReportMate',
     enabled: true,
     category: 'security',
     tags: ['security', 'compliance', 'filevault', 'firewall', 'gatekeeper'],

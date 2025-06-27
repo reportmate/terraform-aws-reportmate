@@ -259,7 +259,7 @@ export class DeviceInfoModule extends BaseModule {
     name: 'Device Information',
     version: '1.0.0',
     description: 'Core module for displaying device information',
-    author: 'Reportmate Team',
+    author: 'ReportMate Team',
     enabled: true,
     
     dashboardWidgets: [

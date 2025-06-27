@@ -1,5 +1,5 @@
 /**
- * Reportmate Module Registry
+ * ReportMate Module Registry
  * Inspired by MunkiReport's modular architecture
  */
 
@@ -13,6 +13,27 @@ export interface ModuleManifest {
   author?: string
   enabled: boolean
   dependencies?: string[]
+  
+  // Module metadata
+  official?: boolean
+  repository?: string
+  category?: 'core' | 'widget' | 'integration' | 'security' | 'hardware' | 'software'
+  tags?: string[]
+  
+  // Entry points
+  main?: string  // JavaScript entry point
+  styles?: string  // CSS entry point
+  
+  // Permissions required
+  permissions?: string[]
+  
+  // Configuration schema
+  configSchema?: any
+  defaultConfig?: any
+  
+  // Compatibility
+  minVersion?: string  // Minimum ReportMate version
+  maxVersion?: string
   
   // UI Components
   dashboardWidgets?: DashboardWidget[]
