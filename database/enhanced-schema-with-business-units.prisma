@@ -1,0 +1,304 @@
+// Enhanced Prisma Schema for ReportMate - Production Normalized Approach
+// This schema provides full normalization for better querying and analytics
+// Extended with MunkiReport-inspired business units and machine groups
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Business Units for access control and organization
+// Inspired by MunkiReport's business unit implementation
+model BusinessUnit {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  description String?
+  address     String?
+  link        String? // Optional URL for more information about the business unit
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  machineGroups      MachineGroup[]
+  businessUnitUsers  BusinessUnitUser[]
+  businessUnitGroups BusinessUnitGroup[]
+
+  @@map("business_units")
+}
+
+// Machine Groups for device organization and passphrase-based access
+// Each machine group has its own unique passphrase (key), similar to MunkiReport
+model MachineGroup {
+  id               Int          @id @default(autoincrement())
+  name             String
+  description      String?
+  passphraseHash   String       @unique @map("passphrase_hash") // SHA-256 hash of the group's unique passphrase/key
+  businessUnitId   Int?         @map("business_unit_id")
+  businessUnit     BusinessUnit? @relation(fields: [businessUnitId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  devices Device[]
+
+  @@index([passphraseHash])
+  @@index([businessUnitId])
+  @@map("machine_groups")
+}
+
+// Business Unit User assignments (many-to-many)
+// Supports individual user assignments to business units with roles
+model BusinessUnitUser {
+  id             Int          @id @default(autoincrement())
+  businessUnitId Int          @map("business_unit_id")
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id], onDelete: Cascade)
+  username       String
+  role           String       @default("user") // user, manager, archiver, admin
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([businessUnitId, username])
+  @@index([username])
+  @@map("business_unit_users")
+}
+
+// Business Unit Group assignments (many-to-many)
+// Supports group-based assignments to business units with roles (LDAP/AD groups prefixed with @)
+model BusinessUnitGroup {
+  id             Int          @id @default(autoincrement())
+  businessUnitId Int          @map("business_unit_id")
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id], onDelete: Cascade)
+  groupName      String       @map("group_name") // Group names should be prefixed with @ (e.g., @ad_munki_managers)
+  role           String       @default("user") // user, manager, archiver, admin
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([businessUnitId, groupName])
+  @@index([groupName])
+  @@map("business_unit_groups")
+}
+
+// Core Device model - normalized approach
+model Device {
+  id            String    @id
+  name          String
+  model         String?
+  os            String?
+  serialNumber  String?   @map("serial_number")
+  assetTag      String?   @map("asset_tag")
+  ipAddress     String?   @map("ip_address")
+  macAddress    String?   @map("mac_address")
+  location      String?
+  lastSeen      DateTime? @map("last_seen") @db.Timestamptz
+  status        String    @default("unknown")
+  uptime        String?
+  totalEvents   Int       @default(0) @map("total_events")
+  lastEventTime DateTime? @map("last_event_time") @db.Timestamptz
+
+  // Machine Group assignment - devices are assigned to groups via passphrase
+  machineGroupId Int?          @map("machine_group_id")
+  machineGroup   MachineGroup? @relation(fields: [machineGroupId], references: [id], onDelete: SetNull)
+
+  // Basic hardware fields (most commonly queried)
+  processor     String?
+  memory        String?
+  storage       String?
+  architecture  String?
+
+  // System Performance Metrics
+  diskUtilization   Int?      @map("disk_utilization")
+  memoryUtilization Int?      @map("memory_utilization")
+  cpuUtilization    Int?      @map("cpu_utilization")
+  temperature       Int?
+  batteryLevel      Int?      @map("battery_level")
+  bootTime          DateTime? @map("boot_time") @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Normalized Relations
+  events               Event[]
+  cimianRuns           CimianRun[]
+  hardware             DeviceHardware?
+  networkInterfaces    NetworkInterface[]
+  mdmInfo              MDMInfo?
+  securityFeatures     SecurityFeature[]
+  managedInstalls      ManagedInstall?
+  applications         Application[]
+  mdmProfiles          MDMProfile[]
+  softwareInfo         SoftwareInfo?
+
+  @@index([lastSeen])
+  @@index([status])
+  @@index([serialNumber])
+  @@index([machineGroupId])
+  @@map("devices")
+}
+
+// Event model for telemetry data
+model Event {
+  id       String @id @default(cuid())
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  kind      String
+  timestamp DateTime @db.Timestamptz
+  payload   Json
+
+  @@index([deviceId])
+  @@index([kind])
+  @@index([timestamp])
+  @@map("events")
+}
+
+// Cimian scan results
+model CimianRun {
+  id       String @id @default(cuid())
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  timestamp    DateTime @db.Timestamptz
+  scanDuration Int?     @map("scan_duration")
+  issues       Json?
+  
+  @@index([deviceId])
+  @@index([timestamp])
+  @@map("cimian_runs")
+}
+
+// Hardware information
+model DeviceHardware {
+  id       String @id @default(cuid())
+  deviceId String @unique @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  manufacturer     String?
+  motherboard      String?
+  biosVersion      String? @map("bios_version")
+  firmwareVersion  String? @map("firmware_version")
+  gpuInfo          Json?   @map("gpu_info")
+  
+  @@map("device_hardware")
+}
+
+// Network interfaces
+model NetworkInterface {
+  id       String @id @default(cuid())
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  name       String
+  ipAddress  String? @map("ip_address")
+  macAddress String? @map("mac_address")
+  type       String?
+  speed      String?
+  status     String?
+  
+  @@index([deviceId])
+  @@map("network_interfaces")
+}
+
+// MDM Information
+model MDMInfo {
+  id       String @id @default(cuid())
+  deviceId String @unique @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  enrolled          Boolean @default(false)
+  serverUrl         String? @map("server_url")
+  enrollmentDate    DateTime? @map("enrollment_date") @db.Timestamptz
+  lastCheckIn       DateTime? @map("last_check_in") @db.Timestamptz
+  supervisionStatus String? @map("supervision_status")
+  
+  @@map("mdm_info")
+}
+
+// Security Features
+model SecurityFeature {
+  id       String @id @default(cuid())
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  featureName String @map("feature_name")
+  enabled     Boolean
+  details     Json?
+  
+  @@index([deviceId])
+  @@index([featureName])
+  @@map("security_features")
+}
+
+// Managed Installs (Munki-style)
+model ManagedInstall {
+  id       String @id @default(cuid())
+  deviceId String @unique @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  pendingInstalls   Json? @map("pending_installs")
+  pendingRemovals   Json? @map("pending_removals")
+  managedInstalls   Json? @map("managed_installs")
+  lastRunResult     String? @map("last_run_result")
+  lastRunTimestamp  DateTime? @map("last_run_timestamp") @db.Timestamptz
+  
+  @@map("managed_installs")
+}
+
+// Applications inventory
+model Application {
+  id       String @id @default(cuid())
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  name            String
+  version         String?
+  bundleId        String? @map("bundle_id")
+  path            String?
+  installDate     DateTime? @map("install_date") @db.Timestamptz
+  lastUsed        DateTime? @map("last_used") @db.Timestamptz
+  
+  @@index([deviceId])
+  @@index([name])
+  @@index([bundleId])
+  @@map("applications")
+}
+
+// MDM Configuration Profiles
+model MDMProfile {
+  id       String @id @default(cuid())
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  profileId          String @map("profile_id")
+  displayName        String @map("display_name")
+  description        String?
+  installDate        DateTime? @map("install_date") @db.Timestamptz
+  isRemovable        Boolean @default(true) @map("is_removable")
+  payloadTypes       Json? @map("payload_types")
+  
+  @@index([deviceId])
+  @@index([profileId])
+  @@map("mdm_profiles")
+}
+
+// Software information
+model SoftwareInfo {
+  id       String @id @default(cuid())
+  deviceId String @unique @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  operatingSystem     String? @map("operating_system")
+  osVersion           String? @map("os_version")
+  osBuild             String? @map("os_build")
+  kernelVersion       String? @map("kernel_version")
+  systemIntegrityProtection Boolean? @map("system_integrity_protection")
+  gatekeeper          Boolean?
+  
+  @@map("software_info")
+}
