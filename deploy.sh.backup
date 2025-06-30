@@ -337,7 +337,6 @@ deploy_infrastructure() {
         -var="environment=$ENVIRONMENT" \
         -var="deploy_dev=$DEPLOY_DEV" \
         -var="deploy_prod=$DEPLOY_PROD" \
-        -var="frontend_image_tag=$IMAGE_TAG" \
         -var="enable_pipeline_permissions=$PIPELINE_MODE" \
         -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
         -out=tfplan
@@ -463,9 +462,7 @@ update_container_apps() {
         -var="deploy_dev=$DEPLOY_DEV" \
         -var="deploy_prod=$DEPLOY_PROD" \
         -var="enable_pipeline_permissions=$PIPELINE_MODE" \
-        -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
-        -var="frontend_image_tag=$IMAGE_TAG" \
-        -var="functions_image_tag=$IMAGE_TAG"
+        -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}"
     
     if [ $? -ne 0 ]; then
         echo -e "${RED}❌ Container app update failed${NC}"

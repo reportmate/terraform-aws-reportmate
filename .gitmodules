@@ -1,0 +1,3 @@
+[submodule "apps/www"]
+	path = apps/www
+	url = https://github.com/reportmate/reportmate-app-web.git

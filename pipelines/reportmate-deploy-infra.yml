@@ -261,9 +261,7 @@ stages:
                       
                       # Update container apps with new image tags
                       terraform apply -auto-approve \
-                        -var="db_password=$(DB_PASSWORD)" \
-                        -var="frontend_image_tag=$(Build.BuildNumber)" \
-                        -var="functions_image_tag=$(Build.BuildNumber)"
+                        -var="db_password=$(DB_PASSWORD)"
                       
                       echo "=== Container Apps Updated ==="
                       

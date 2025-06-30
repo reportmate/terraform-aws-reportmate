@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Reportmate Unified Deployment Script
+# ReportMate Unified Deployment Script
 # Run this s    echo "OPTIONS:"
     echo "  --env <environment>         Target environment: dev, prod, or both (default: prod)"
     echo "  --resource-group <name>     Azure resource group name (default: ReportMate)"
@@ -39,7 +39,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Environment variables with defaults
-RESOURCE_GROUP="Reportmate"
+RESOURCE_GROUP="ReportMate"
 LOCATION="Canada Central"
 
 # Try to get DB_PASSWORD from terraform.tfvars first, then environment, then generate random
@@ -72,7 +72,7 @@ CLIENT_SECRET=${AZURE_CLIENT_SECRET:-}
 # =================================================================
 
 show_usage() {
-    echo "Reportmate Unified Deployment Script"
+    echo "ReportMate Unified Deployment Script"
     echo ""
     echo "Usage: $0 [FLAGS] [OPTIONS]"
     echo ""
@@ -184,7 +184,7 @@ parse_arguments() {
 }
 
 show_configuration() {
-    echo -e "${GREEN}🚀 Reportmate Unified Deployment${NC}"
+    echo -e "${GREEN}🚀 ReportMate Unified Deployment${NC}"
     echo -e "${BLUE}Configuration:${NC}"
     echo "  Resource Group: $RESOURCE_GROUP"
     echo "  Location: $LOCATION"
@@ -321,7 +321,6 @@ deploy_infrastructure() {
         -var="environment=$ENVIRONMENT" \
         -var="deploy_dev=$DEPLOY_DEV" \
         -var="deploy_prod=$DEPLOY_PROD" \
-        -var="frontend_image_tag=$IMAGE_TAG" \
         -var="enable_pipeline_permissions=$PIPELINE_MODE" \
         -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
         -out=tfplan
@@ -380,16 +379,16 @@ build_and_push_containers() {
     
     docker build \
         --platform linux/amd64 \
-        -t reportmate-frontend:$IMAGE_TAG \
+        -t reportmate:$IMAGE_TAG \
         --build-arg DOCKER_BUILD=true \
         .
     
-    docker tag reportmate-frontend:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-frontend:$IMAGE_TAG
-    docker tag reportmate-frontend:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-frontend:latest
+    docker tag reportmate:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate:$IMAGE_TAG
+    docker tag reportmate:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate:latest
     
     echo -e "${YELLOW}📤 Pushing frontend to ACR...${NC}"
-    docker push $ACR_LOGIN_SERVER/reportmate-frontend:$IMAGE_TAG
-    docker push $ACR_LOGIN_SERVER/reportmate-frontend:latest
+    docker push $ACR_LOGIN_SERVER/reportmate:$IMAGE_TAG
+    docker push $ACR_LOGIN_SERVER/reportmate:latest
     
     cd ../..
     
@@ -447,9 +446,7 @@ update_container_apps() {
         -var="deploy_dev=$DEPLOY_DEV" \
         -var="deploy_prod=$DEPLOY_PROD" \
         -var="enable_pipeline_permissions=$PIPELINE_MODE" \
-        -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}" \
-        -var="frontend_image_tag=$IMAGE_TAG" \
-        -var="functions_image_tag=$IMAGE_TAG"
+        -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}"
     
     if [ $? -ne 0 ]; then
         echo -e "${RED}❌ Container app update failed${NC}"

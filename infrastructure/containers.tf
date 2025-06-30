@@ -24,6 +24,13 @@ resource "azurerm_container_app_environment" "env" {
   
   log_analytics_workspace_id = azurerm_log_analytics_workspace.logs.id
 
+  # Workaround for Azure's API cache returning old resource group casing in workspace ID
+  lifecycle {
+    ignore_changes = [
+      log_analytics_workspace_id  # Ignore changes to workspace ID due to Azure API cache
+    ]
+  }
+
   depends_on = [
     azurerm_log_analytics_workspace.logs
   ]
@@ -46,7 +53,7 @@ resource "azurerm_container_app" "frontend_dev" {
   template {
     container {
       name   = "frontend"
-      image  = "${azurerm_container_registry.acr.login_server}/reportmate-frontend:${var.frontend_image_tag}"
+      image  = "${azurerm_container_registry.acr.login_server}/reportmate:latest"
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -57,7 +64,7 @@ resource "azurerm_container_app" "frontend_dev" {
 
       env {
         name  = "NEXT_PUBLIC_WPS_URL"
-        value = "wss://${azurerm_web_pubsub.wps.hostname}/client/hubs/events"
+        value = "wss://${azurerm_web_pubsub.wps.hostname}/client/hubs/fleet"
       }
 
       env {
@@ -98,13 +105,7 @@ resource "azurerm_container_app" "frontend_dev" {
     identity = azurerm_user_assigned_identity.main.id
   }
 
-  # Always use latest image - don't track image changes in Terraform
-  lifecycle {
-    ignore_changes = [
-      template[0].container[0].image,
-      template[0].revision_suffix
-    ]
-  }
+  # Note: revision_suffix is managed automatically by Azure Container Apps
 
   tags = {
     Environment = "development"
@@ -128,7 +129,7 @@ resource "azurerm_container_app" "frontend_prod" {
   template {
     container {
       name   = "frontend"
-      image  = "${azurerm_container_registry.acr.login_server}/reportmate-frontend:${var.frontend_image_tag}"
+      image  = "${azurerm_container_registry.acr.login_server}/reportmate:latest"
       cpu    = 0.5   # More CPU for production
       memory = "1Gi" # More memory for production
 
@@ -139,7 +140,7 @@ resource "azurerm_container_app" "frontend_prod" {
 
       env {
         name  = "NEXT_PUBLIC_WPS_URL"
-        value = "wss://${azurerm_web_pubsub.wps.hostname}/client/hubs/events"
+        value = "wss://${azurerm_web_pubsub.wps.hostname}/client/hubs/fleet"
       }
 
       env {
@@ -174,18 +175,21 @@ resource "azurerm_container_app" "frontend_prod" {
     identity = azurerm_user_assigned_identity.main.id
   }
 
-  # Always use latest image - don't track image changes in Terraform
+  # Workaround for Azure's API cache returning old resource group casing
+  # This prevents infinite recreation loops due to platform-level caching issues
   lifecycle {
     ignore_changes = [
-      template[0].container[0].image,
-      template[0].revision_suffix
+      container_app_environment_id  # Ignore changes to environment ID due to Azure API cache
     ]
   }
+
+  # Note: revision_suffix is managed automatically by Azure Container Apps
 
   tags = {
     Environment = "production"
   }
 }
 
-# Custom domain will be configured directly in the container app ingress configuration
-# Azure will automatically provision a managed certificate when the custom domain is added
+# Managed Certificate for Custom Domain
+# Note: Azure Container Apps can automatically manage certificates for custom domains
+# The certificate will be automatically provisioned once the custom domain is verified

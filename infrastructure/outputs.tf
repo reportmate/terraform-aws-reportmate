@@ -71,7 +71,7 @@ output "frontend_prod_url" {
     "https://${var.custom_domain_name}" : 
     "https://${azurerm_container_app.frontend_prod[0].latest_revision_fqdn}"
   ) : null
-  description = "Production frontend URL (if deployed)"
+  description = "Production frontend URL (if deployed) - uses Front Door for custom domains"
 }
 
 # Legacy output for backward compatibility
@@ -84,5 +84,40 @@ output "frontend_url" {
     "https://${azurerm_container_app.frontend_dev[0].latest_revision_fqdn}" : 
     "No frontend deployed"
   )
-  description = "Primary frontend URL (prod if available, otherwise dev)"
+  description = "Primary frontend URL (prod if available, otherwise dev) - uses Front Door for custom domains"
+}
+
+# Front Door specific outputs
+output "frontdoor_endpoint" {
+  value = var.enable_custom_domain && var.custom_domain_name != "" ? azurerm_cdn_frontdoor_endpoint.frontend.host_name : null
+  description = "Azure Front Door endpoint hostname"
+}
+
+output "frontdoor_validation_token" {
+  value = var.enable_custom_domain && var.custom_domain_name != "" ? azurerm_cdn_frontdoor_custom_domain.frontend.validation_token : null
+  description = "Domain validation token for DNS verification (required for custom domain setup)"
+}
+
+# Container App FQDN for DNS configuration
+output "container_app_fqdn" {
+  value = length(azurerm_container_app.frontend_prod) > 0 ? azurerm_container_app.frontend_prod[0].ingress[0].fqdn : null
+  description = "Current Container App ingress FQDN - use this for CNAME record"
+}
+
+# DNS setup instructions
+output "dns_setup_instructions" {
+  value = var.enable_custom_domain && var.custom_domain_name != "" ? {
+    cname_record = {
+      name  = replace(var.custom_domain_name, ".ecuad.ca", "")
+      type  = "CNAME"
+      value = azurerm_cdn_frontdoor_endpoint.frontend.host_name
+    }
+    txt_record = {
+      name  = "_dnsauth.${replace(var.custom_domain_name, ".ecuad.ca", "")}"
+      type  = "TXT"  
+      value = azurerm_cdn_frontdoor_custom_domain.frontend.validation_token
+    }
+    instructions = "Add both DNS records, then run 'terraform apply' again after ~45 minutes for certificate issuance"
+  } : null
+  description = "DNS records required for custom domain and certificate validation"
 }

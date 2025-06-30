@@ -14,19 +14,6 @@ variable "allowed_ips" {
   default = ["0.0.0.0/0"]
 }
 
-### Container Images
-variable "frontend_image_tag" {
-  type        = string
-  description = "Docker image tag for the frontend container"
-  default     = "latest"
-}
-
-variable "functions_image_tag" {
-  type        = string
-  description = "Docker image tag for the functions container (currently not used - functions use zip deployment)"
-  default     = "latest"
-}
-
 ### Pipeline Permissions
 variable "enable_pipeline_permissions" {
   type        = bool

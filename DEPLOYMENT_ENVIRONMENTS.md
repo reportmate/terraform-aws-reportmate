@@ -16,7 +16,6 @@ The script now passes the appropriate variables to Terraform:
 - `environment` - The target environment (dev/prod/both)
 - `deploy_dev` - Boolean flag for development deployment
 - `deploy_prod` - Boolean flag for production deployment
-- `frontend_image_tag` - Docker image tag for containers
 
 ### Infrastructure Configuration
 The existing Terraform configuration in `infrastructure/containers.tf` already supports:

@@ -388,10 +388,6 @@ Update `infrastructure/terraform.tfvars`:
 db_username = "reportmate"
 db_password = "YourSecurePassword123!"
 
-# Container configuration
-frontend_image_tag = "latest"
-functions_image_tag = "latest"
-
 # Pipeline integration
 enable_pipeline_permissions = true
 pipeline_service_principal_id = "your-service-principal-object-id"
