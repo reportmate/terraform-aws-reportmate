@@ -1,6 +1,0 @@
-{
-  "/api/device/route": "app/api/device/route.js",
-  "/api/events/route": "app/api/events/route.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/page": "app/page.js"
-}
