@@ -1,29 +1,7 @@
 #!/bin/bash
 
 # ReportMate Unified Deployment Script
-# Run this s    echo "OPTIONS:"
-    echo "  --env <environment>         Target environment: dev, prod, or both (default: prod)"
-    echo "  --resource-group <name>     Azure resource group name (default: ReportMate)"
-    echo "  --location <location>       Azure region (default: Canada Central)"
-    echo "  --image-tag <tag>           Docker image tag (default: timestamp)"
-    echo "  --db-password <password>    Database password (default: auto-generated)"
-    echo ""
-        echo -e "${BLUE}📊 Deployment Summary:${NC}"
-    echo "  ✅ Resource Group: $RESOURCE_GROUP"
-    echo "  ✅ Environment: $ENVIRONMENT"
-    echo "  ✅ Image Tag: $IMAGE_TAG"o "ENVIRONMENT OPTIONS:"
-    echo "  dev                         Deploy development container app only"
-    echo "  prod                        Deploy production container app only (default)"
-    echo "  both                        Deploy both development and production apps"
-    echo ""
-    echo "EXAMPLES:"
-    echo "  $0 --full                           # Complete deployment to production"
-    echo "  $0 --full --env dev                 # Complete deployment to development"
-    echo "  $0 --full --env both                # Deploy to both dev and prod"
-    echo "  $0 --containers --env dev           # Only rebuild and push to dev"
-    echo "  $0 --infra --database --env prod    # Deploy infrastructure and setup database for prod"
-    echo "  $0 --containers --test --env both   # Build containers for both envs and run tests"
-    echo "  $0 --infra --image-tag v1.2.3       # Deploy infra with specific image tag"loy infrastructure and applications to Azure
+# Deploy infrastructure and applications to Azure
 
 set -e  # Exit on any error
 
@@ -41,6 +19,7 @@ NC='\033[0m' # No Color
 # Environment variables with defaults
 RESOURCE_GROUP="ReportMate"
 LOCATION="Canada Central"
+ENVIRONMENT="prod"  # Default environment
 
 # Try to get DB_PASSWORD from terraform.tfvars first, then environment, then generate random
 if [ -z "$DB_PASSWORD" ] && [ -f "infrastructure/terraform.tfvars" ]; then
@@ -85,16 +64,24 @@ show_usage() {
     echo "  -h, --help                  Show this help message"
     echo ""
     echo "OPTIONS:"
-    echo "  --resource-group <name>     Azure resource group name (default: rg-reportmate-prod)"
+    echo "  --env <environment>         Target environment: dev, prod, or both (default: prod)"
+    echo "  --resource-group <name>     Azure resource group name (default: ReportMate)"
     echo "  --location <location>       Azure region (default: Canada Central)"
     echo "  --image-tag <tag>           Docker image tag (default: timestamp)"
     echo "  --db-password <password>    Database password (default: auto-generated)"
     echo ""
+    echo "ENVIRONMENT OPTIONS:"
+    echo "  dev                         Deploy development container app only"
+    echo "  prod                        Deploy production container app only (default)"
+    echo "  both                        Deploy both development and production apps"
+    echo ""
     echo "EXAMPLES:"
-    echo "  $0 --full                           # Complete deployment"
-    echo "  $0 --containers                     # Only rebuild and push containers"
-    echo "  $0 --infra --database               # Deploy infrastructure and setup database"
-    echo "  $0 --containers --test              # Build containers and run tests"
+    echo "  $0 --full                           # Complete deployment to production"
+    echo "  $0 --full --env dev                 # Complete deployment to development"
+    echo "  $0 --full --env both                # Deploy to both dev and prod"
+    echo "  $0 --containers --env dev           # Only rebuild and push to dev"
+    echo "  $0 --infra --database --env prod    # Deploy infrastructure and setup database for prod"
+    echo "  $0 --containers --test --env both   # Build containers for both envs and run tests"
     echo "  $0 --infra --image-tag v1.2.3       # Deploy infra with specific image tag"
     echo ""
     echo "ENVIRONMENT VARIABLES:"
@@ -135,7 +122,7 @@ parse_arguments() {
                 ENVIRONMENT="$2"
                 # Validate environment value
                 if [[ ! "$ENVIRONMENT" =~ ^(dev|prod|both)$ ]]; then
-                    echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
+                    echo -e "${RED}Invalid environment: $ENVIRONMENT${NC}"
                     echo "Environment must be 'dev', 'prod', or 'both'"
                     exit 1
                 fi
@@ -162,7 +149,7 @@ parse_arguments() {
                 shift
                 ;;
             *)
-                echo -e "${RED}❌ Unknown argument: $1${NC}"
+                echo -e "${RED}Unknown argument: $1${NC}"
                 echo "Use --help for usage information"
                 exit 1
                 ;;
@@ -177,14 +164,14 @@ parse_arguments() {
     
     # Check if at least one action flag is set
     if [ "$DEPLOY_INFRA" = false ] && [ "$DEPLOY_CONTAINERS" = false ] && [ "$SETUP_DATABASE" = false ] && [ "$RUN_TESTS" = false ]; then
-        echo -e "${RED}❌ No deployment actions specified${NC}"
+        echo -e "${RED}No deployment actions specified${NC}"
         echo "Use --help to see available options, or --full for complete deployment"
         exit 1
     fi
 }
 
 show_configuration() {
-    echo -e "${GREEN}🚀 ReportMate Unified Deployment${NC}"
+    echo -e "${GREEN}ReportMate Unified Deployment${NC}"
     echo -e "${BLUE}Configuration:${NC}"
     echo "  Resource Group: $RESOURCE_GROUP"
     echo "  Location: $LOCATION"
@@ -195,24 +182,24 @@ show_configuration() {
     echo -e "${BLUE}Environment Targets:${NC}"
     case $ENVIRONMENT in
         "dev")
-            echo "  Development: ✅ YES"
-            echo "  Production: ❌ NO"
+            echo "  Development: YES"
+            echo "  Production: NO"
             ;;
         "prod")
-            echo "  Development: ❌ NO"
-            echo "  Production: ✅ YES"
+            echo "  Development: NO"
+            echo "  Production: YES"
             ;;
         "both")
-            echo "  Development: ✅ YES"
-            echo "  Production: ✅ YES"
+            echo "  Development: YES"
+            echo "  Production: YES"
             ;;
     esac
     echo ""
     echo -e "${BLUE}Deployment Actions:${NC}"
-    echo "  Deploy Infrastructure: $([ "$DEPLOY_INFRA" = true ] && echo "✅ YES" || echo "❌ NO")"
-    echo "  Deploy Containers: $([ "$DEPLOY_CONTAINERS" = true ] && echo "✅ YES" || echo "❌ NO")"
-    echo "  Setup Database: $([ "$SETUP_DATABASE" = true ] && echo "✅ YES" || echo "❌ NO")"
-    echo "  Run Tests: $([ "$RUN_TESTS" = true ] && echo "✅ YES" || echo "❌ NO")"
+    echo "  Deploy Infrastructure: $([ "$DEPLOY_INFRA" = true ] && echo "YES" || echo "NO")"
+    echo "  Deploy Containers: $([ "$DEPLOY_CONTAINERS" = true ] && echo "YES" || echo "NO")"
+    echo "  Setup Database: $([ "$SETUP_DATABASE" = true ] && echo "YES" || echo "NO")"
+    echo "  Run Tests: $([ "$RUN_TESTS" = true ] && echo "YES" || echo "NO")"
     echo ""
 }
 
@@ -221,7 +208,7 @@ show_configuration() {
 # =================================================================
 
 check_prerequisites() {
-    echo -e "${YELLOW}📋 Checking prerequisites...${NC}"
+    echo -e "${YELLOW}Checking prerequisites...${NC}"
     
     missing_tools=()
     
@@ -238,25 +225,92 @@ check_prerequisites() {
     fi
     
     if [ ${#missing_tools[@]} -ne 0 ]; then
-        echo -e "${RED}❌ Missing required tools: ${missing_tools[*]}${NC}"
+        echo -e "${RED}Missing required tools: ${missing_tools[*]}${NC}"
         echo -e "${YELLOW}Please install the missing tools before proceeding.${NC}"
         exit 1
     fi
     
-    echo -e "${GREEN}✅ Prerequisites check complete${NC}"
+    # Check if Docker is needed for this deployment
+    if [ "$DEPLOY_CONTAINERS" = true ]; then
+        echo -e "${BLUE}Checking Docker status...${NC}"
+        
+        # Check if Docker daemon is running
+        if ! docker info &> /dev/null; then
+            echo -e "${YELLOW}Docker is not running. Attempting to start Docker...${NC}"
+            
+            # Try to start Docker based on the OS
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS - start Docker Desktop
+                if command -v open &> /dev/null; then
+                    echo -e "${BLUE}Starting Docker Desktop...${NC}"
+                    open -a Docker
+                    
+                    # Wait for Docker to start (up to 60 seconds)
+                    echo -e "${YELLOW}Waiting for Docker to start...${NC}"
+                    for i in {1..30}; do
+                        if docker info &> /dev/null; then
+                            echo -e "${GREEN}Docker started successfully!${NC}"
+                            break
+                        fi
+                        echo -n "."
+                        sleep 2
+                    done
+                    echo ""
+                    
+                    # Final check
+                    if ! docker info &> /dev/null; then
+                        echo -e "${RED}Failed to start Docker. Please start Docker Desktop manually and try again.${NC}"
+                        exit 1
+                    fi
+                else
+                    echo -e "${RED}Cannot start Docker automatically. Please start Docker Desktop and try again.${NC}"
+                    exit 1
+                fi
+            elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                # Linux - try to start Docker service
+                echo -e "${BLUE}Attempting to start Docker service...${NC}"
+                if command -v systemctl &> /dev/null; then
+                    sudo systemctl start docker
+                    sleep 5
+                elif command -v service &> /dev/null; then
+                    sudo service docker start
+                    sleep 5
+                fi
+                
+                # Check if Docker started
+                if ! docker info &> /dev/null; then
+                    echo -e "${RED}Failed to start Docker. Please start Docker manually:${NC}"
+                    echo -e "${YELLOW}  sudo systemctl start docker${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}Unsupported OS. Please start Docker manually and try again.${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${GREEN}Docker is running${NC}"
+        fi
+    fi
+    
+    echo -e "${GREEN}Prerequisites check complete${NC}"
 }
 
 authenticate_azure() {
-    echo -e "${YELLOW}🔑 Authenticating with Azure...${NC}"
+    echo -e "${YELLOW}Authenticating with Azure...${NC}"
     
     if [ "$PIPELINE_MODE" = false ]; then
         # Interactive login for local development
         if ! az account show &> /dev/null; then
             echo -e "${BLUE}Please login to Azure:${NC}"
-            az login --tenant "$TENANT_ID"
+            if [ -n "$TENANT_ID" ]; then
+                az login --tenant "$TENANT_ID"
+            else
+                az login
+            fi
         fi
         
         SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        TENANT_ID=$(az account show --query tenantId -o tsv)
         echo "  Subscription: $SUBSCRIPTION_ID"
         echo "  Tenant: $TENANT_ID"
     else
@@ -268,7 +322,7 @@ authenticate_azure() {
             --tenant "$TENANT_ID"
     fi
     
-    echo -e "${GREEN}✅ Azure authentication complete${NC}"
+    echo -e "${GREEN}Azure authentication complete${NC}"
 }
 
 deploy_infrastructure() {
@@ -277,7 +331,7 @@ deploy_infrastructure() {
         return 0
     fi
     
-    echo -e "${YELLOW}🏗️  Deploying infrastructure with Terraform...${NC}"
+    echo -e "${YELLOW}Deploying infrastructure with Terraform...${NC}"
     
     cd infrastructure
     
@@ -290,7 +344,7 @@ deploy_infrastructure() {
     terraform validate
     
     if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Terraform validation failed${NC}"
+        echo -e "${RED}Terraform validation failed${NC}"
         exit 1
     fi
     
@@ -309,7 +363,7 @@ deploy_infrastructure() {
             DEPLOY_PROD=true
             ;;
         *)
-            echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
+            echo -e "${RED}Invalid environment: $ENVIRONMENT${NC}"
             exit 1
             ;;
     esac
@@ -326,20 +380,20 @@ deploy_infrastructure() {
         -out=tfplan
     
     # Apply infrastructure
-    echo -e "${YELLOW}🚀 Applying Terraform plan...${NC}"
+    echo -e "${YELLOW}Applying Terraform plan...${NC}"
     terraform apply -auto-approve tfplan
     
     if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Terraform deployment failed${NC}"
+        echo -e "${RED}Terraform deployment failed${NC}"
         exit 1
     fi
     
-    echo -e "${GREEN}✅ Infrastructure deployed successfully!${NC}"
+    echo -e "${GREEN}Infrastructure deployed successfully!${NC}"
     cd ..
 }
 
 get_infrastructure_outputs() {
-    echo -e "${YELLOW}📋 Getting infrastructure outputs...${NC}"
+    echo -e "${YELLOW}Getting infrastructure outputs...${NC}"
     
     cd infrastructure
     
@@ -351,6 +405,7 @@ get_infrastructure_outputs() {
     WEB_PUBSUB_ENDPOINT=$(terraform output -raw web_pubsub_endpoint 2>/dev/null || echo "")
     DB_CONNECTION=$(terraform output -raw postgres_connection 2>/dev/null || echo "")
     
+    echo "  ACR Name: $ACR_NAME"
     echo "  ACR: $ACR_LOGIN_SERVER"
     echo "  Function App: $FUNCTION_APP_URL"
     echo "  Frontend: $FRONTEND_URL"
@@ -369,12 +424,28 @@ build_and_push_containers() {
     
     # Login to ACR (skip in pipeline if already authenticated)
     if [ "$PIPELINE_MODE" = false ]; then
-        echo -e "${YELLOW}🔐 Authenticating with Azure Container Registry...${NC}"
-        az acr login --name $ACR_NAME
+        echo -e "${YELLOW}Authenticating with Azure Container Registry...${NC}"
+        echo "ACR Name: $ACR_NAME"
+        echo "ACR Login Server: $ACR_LOGIN_SERVER"
+        
+        if [ -n "$ACR_NAME" ] && [ "$ACR_NAME" != "reportmateacr" ]; then
+            echo "Logging in to ACR: $ACR_NAME"
+            az acr login --name "$ACR_NAME"
+        else
+            echo "Using fallback ACR: reportmateacr"
+            az acr login --name reportmateacr
+        fi
+        
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}ACR login failed${NC}"
+            exit 1
+        fi
+        
+        echo -e "${GREEN}ACR authentication successful${NC}"
     fi
     
     # Build and push frontend
-    echo -e "${YELLOW}🏗️  Building frontend container...${NC}"
+    echo -e "${YELLOW}Building frontend container...${NC}"
     cd apps/www
     
     docker build \
@@ -383,6 +454,11 @@ build_and_push_containers() {
         --build-arg DOCKER_BUILD=true \
         .
     
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Frontend Docker build failed${NC}"
+        exit 1
+    fi
+    
     docker tag reportmate:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate:$IMAGE_TAG
     docker tag reportmate:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate:latest
     
@@ -390,16 +466,26 @@ build_and_push_containers() {
     docker push $ACR_LOGIN_SERVER/reportmate:$IMAGE_TAG
     docker push $ACR_LOGIN_SERVER/reportmate:latest
     
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Frontend Docker push failed${NC}"
+        exit 1
+    fi
+    
     cd ../..
     
     # Build and push functions
-    echo -e "${YELLOW}🏗️  Building functions container...${NC}"
+    echo -e "${YELLOW}Building functions container...${NC}"
     cd functions
     
     docker build \
         --platform linux/amd64 \
         -t reportmate-functions:$IMAGE_TAG \
         .
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Functions Docker build failed${NC}"
+        exit 1
+    fi
     
     docker tag reportmate-functions:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-functions:$IMAGE_TAG
     docker tag reportmate-functions:$IMAGE_TAG $ACR_LOGIN_SERVER/reportmate-functions:latest
@@ -408,9 +494,14 @@ build_and_push_containers() {
     docker push $ACR_LOGIN_SERVER/reportmate-functions:$IMAGE_TAG
     docker push $ACR_LOGIN_SERVER/reportmate-functions:latest
     
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Functions Docker push failed${NC}"
+        exit 1
+    fi
+    
     cd ..
     
-    echo -e "${GREEN}✅ Containers built and pushed successfully!${NC}"
+    echo -e "${GREEN}Containers built and pushed successfully!${NC}"
 }
 
 update_container_apps() {
@@ -418,44 +509,16 @@ update_container_apps() {
         return 0
     fi
     
-    echo -e "${YELLOW}🔄 Updating container apps with new images for environment: $ENVIRONMENT...${NC}"
+    # Skip Terraform update if only deploying containers since images use :latest tag
+    # Container apps will automatically pull the new :latest images
+    echo -e "${YELLOW}🔄 Container apps will automatically update with new :latest images${NC}"
+    echo -e "${BLUE}ℹ️  Skipping Terraform update as containers are configured to use :latest tag${NC}"
     
-    cd infrastructure
+    # Optional: Add a short delay to ensure images are available in ACR
+    echo -e "${BLUE}Waiting 10 seconds for ACR to finalize image push...${NC}"
+    sleep 10
     
-    # Set deployment flags based on environment
-    case $ENVIRONMENT in
-        "dev")
-            DEPLOY_DEV=true
-            DEPLOY_PROD=false
-            ;;
-        "prod")
-            DEPLOY_DEV=false
-            DEPLOY_PROD=true
-            ;;
-        "both")
-            DEPLOY_DEV=true
-            DEPLOY_PROD=true
-            ;;
-    esac
-    
-    # Update container apps using Terraform with new image tags
-    echo -e "${BLUE}Updating infrastructure with new image tags...${NC}"
-    terraform apply -auto-approve \
-        -var="db_password=$DB_PASSWORD" \
-        -var="environment=$ENVIRONMENT" \
-        -var="deploy_dev=$DEPLOY_DEV" \
-        -var="deploy_prod=$DEPLOY_PROD" \
-        -var="enable_pipeline_permissions=$PIPELINE_MODE" \
-        -var="pipeline_service_principal_id=${AZURE_CLIENT_ID:-}"
-    
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Container app update failed${NC}"
-        exit 1
-    fi
-    
-    cd ..
-    
-    echo -e "${GREEN}✅ Container apps updated for environment: $ENVIRONMENT!${NC}"
+    echo -e "${GREEN}Container deployment complete! Apps will update automatically.${NC}"
 }
 
 setup_database() {
@@ -465,7 +528,7 @@ setup_database() {
     fi
     
     if [ "$PIPELINE_MODE" = true ]; then
-        echo -e "${YELLOW}⚠️  Skipping database setup in pipeline mode${NC}"
+        echo -e "${YELLOW}Skipping database setup in pipeline mode${NC}"
         return 0
     fi
     
@@ -474,9 +537,9 @@ setup_database() {
     if [ -f scripts/setup-database.sh ] && [ -n "$DB_CONNECTION" ]; then
         export DATABASE_URL="$DB_CONNECTION"
         ./scripts/setup-database.sh
-        echo -e "${GREEN}✅ Database setup complete!${NC}"
+        echo -e "${GREEN}Database setup complete!${NC}"
     else
-        echo -e "${YELLOW}⚠️  Database setup script not found or no connection string${NC}"
+        echo -e "${YELLOW}Database setup script not found or no connection string${NC}"
     fi
 }
 
@@ -487,11 +550,11 @@ run_deployment_tests() {
     fi
     
     if [ "$PIPELINE_MODE" = true ]; then
-        echo -e "${YELLOW}⚠️  Skipping interactive tests in pipeline mode${NC}"
+        echo -e "${YELLOW}Skipping interactive tests in pipeline mode${NC}"
         return 0
     fi
     
-    echo -e "${YELLOW}🧪 Running deployment tests...${NC}"
+    echo -e "${YELLOW}Running deployment tests...${NC}"
     
     if [ -n "$FUNCTION_APP_URL" ]; then
         echo -e "${BLUE}Testing negotiate endpoint...${NC}"
@@ -502,9 +565,9 @@ run_deployment_tests() {
         HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL/api/negotiate?device=deployment-test" || echo "000")
         
         if [ "$HTTP_STATUS" = "200" ]; then
-            echo -e "${GREEN}✅ Negotiate endpoint is working!${NC}"
+            echo -e "${GREEN}Negotiate endpoint is working!${NC}"
         else
-            echo -e "${YELLOW}⚠️  Negotiate endpoint returned status: $HTTP_STATUS${NC}"
+            echo -e "${YELLOW}Negotiate endpoint returned status: $HTTP_STATUS${NC}"
             echo -e "${YELLOW}   Functions may still be warming up${NC}"
         fi
         
@@ -525,26 +588,26 @@ run_deployment_tests() {
 
 display_summary() {
     echo ""
-    echo -e "${GREEN}🎉 Deployment Complete!${NC}"
+    echo -e "${GREEN}Deployment Complete!${NC}"
     echo ""
     echo -e "${BLUE}� Deployment Summary:${NC}"
-    echo "  ✅ Resource Group: $RESOURCE_GROUP"
-    echo "  ✅ Image Tag: $IMAGE_TAG"
+    echo "  Resource Group: $RESOURCE_GROUP"
+    echo "  Image Tag: $IMAGE_TAG"
     
     if [ -n "$FUNCTION_APP_URL" ]; then
-        echo "  ✅ Function App: $FUNCTION_APP_URL"
+        echo "  Function App: $FUNCTION_APP_URL"
     fi
     
     if [ -n "$FRONTEND_URL" ]; then
-        echo "  ✅ Frontend: $FRONTEND_URL"
+        echo "  Frontend: $FRONTEND_URL"
     fi
     
     if [ -n "$WEB_PUBSUB_ENDPOINT" ]; then
-        echo "  ✅ WebPubSub: wss://$WEB_PUBSUB_ENDPOINT/client/hubs/events"
+        echo "  WebPubSub: wss://$WEB_PUBSUB_ENDPOINT/client/hubs/events"
     fi
     
     if [ -n "$ACR_LOGIN_SERVER" ]; then
-        echo "  ✅ Container Registry: $ACR_LOGIN_SERVER"
+        echo "  Container Registry: $ACR_LOGIN_SERVER"
     fi
     
     echo ""
@@ -561,7 +624,7 @@ display_summary() {
         echo ""
     fi
     
-    echo -e "${GREEN}🚀 Your real-time security events dashboard is now live!${NC}"
+    echo -e "${GREEN}Your real-time security events dashboard is now live!${NC}"
 }
 
 # =================================================================
@@ -574,17 +637,6 @@ main() {
     
     # Show configuration
     show_configuration
-    
-    # Confirm deployment in interactive mode
-    if [ "$PIPELINE_MODE" = false ]; then
-        echo -e "${YELLOW}Do you want to proceed with the deployment? (y/N)${NC}"
-        read -r response
-        if [[ ! "$response" =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}Deployment cancelled.${NC}"
-            exit 0
-        fi
-        echo ""
-    fi
     
     # Execute deployment steps
     check_prerequisites
