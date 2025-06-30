@@ -2,7 +2,7 @@
 
 This directory contains the Windows client implementation for ReportMate, providing automated data collection and secure authentication using passphrases.
 
-## 📁 Files Overview
+## Files Overview
 
 | File | Description |
 |------|-------------|
@@ -13,7 +13,7 @@ This directory contains the Windows client implementation for ReportMate, provid
 | `ReportMate.adm` | Group Policy Administrative Template |
 | `osquery.conf` | Example osquery configuration |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Basic Installation
 
@@ -41,7 +41,7 @@ This directory contains the Windows client implementation for ReportMate, provid
 .\ReportMate-Collector.ps1
 ```
 
-## 🔐 Authentication Configuration
+## Authentication Configuration
 
 ### Via Registry (Manual)
 
@@ -75,7 +75,7 @@ Data type: String
 Value: your-secret-passphrase
 ```
 
-## 📊 Data Collection
+## Data Collection
 
 The client collects the following information using osquery:
 
@@ -100,7 +100,7 @@ The client collects the following information using osquery:
 - Network connections
 - DNS configuration
 
-## 🔧 Advanced Configuration
+## Advanced Configuration
 
 ### Custom Data Collection
 
@@ -187,7 +187,7 @@ $json = $testData | ConvertTo-Json
 Invoke-WebRequest -Uri "https://your-server.com/api/ingest" -Method POST -Body $json -ContentType "application/json"
 ```
 
-## 📝 Registry Keys Reference
+## Registry Keys Reference
 
 | Key | Type | Description | Default |
 |-----|------|-------------|---------|
@@ -198,7 +198,7 @@ Invoke-WebRequest -Uri "https://your-server.com/api/ingest" -Method POST -Body $
 | `LogLevel` | DWORD | Log verbosity (1-4) | 3 |
 | `InstallPath` | String | Client installation path | - |
 
-## 🔒 Security Considerations
+## Security Considerations
 
 ### Best Practices
 
@@ -215,7 +215,7 @@ Invoke-WebRequest -Uri "https://your-server.com/api/ingest" -Method POST -Body $
 - Implement regular rotation schedules
 - Monitor for authentication failures
 
-## 📋 Deployment Checklist
+## Deployment Checklist
 
 - [ ] Server-side passphrase configured
 - [ ] Group Policy template deployed

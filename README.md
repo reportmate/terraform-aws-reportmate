@@ -1,4 +1,4 @@
-# 🚀 ReportMate - Real-Time Security Events Dashboard
+# ReportMate - Real-Time Security Events Dashboard
 
 [![Azure DevOps](https://img.shields.io/badge/Azure%20DevOps-Pipeline%20Ready-blue?logo=azuredevops)](./docs/DEPLOYMENT.md)
 [![Terraform](https://img.shields.io/badge/Infrastructure-Terraformed-purple?logo=terraform)](./infrastructure/)
@@ -6,17 +6,17 @@
 
 > A professional, real-time security events dashboard built for enterprise device management, inspired by MunkiReport's design principles.
 
-## ✨ Features
+## Features
 
-- **🔄 Real-Time Events** - Live dashboard with SignalR/WebPubSub integration
-- **🏗️ Modular Architecture** - Plugin-based widget system for extensibility
-- **🐳 Container Ready** - Modern containerized deployment with Azure Container Apps
-- **⚡ Serverless Backend** - Azure Functions for scalable event processing
-- **🔐 Enterprise Security** - Managed identity authentication with comprehensive RBAC
-- **📊 Professional UI** - Modern dashboard with glassmorphism effects and dark theme
-- **🚀 CI/CD Ready** - Azure DevOps pipelines with Infrastructure as Code
+- **Real-Time Events** - Live dashboard with SignalR/WebPubSub integration
+- **Modular Architecture** - Plugin-based widget system for extensibility
+- **Container Ready** - Modern containerized deployment with Azure Container Apps
+- **Serverless Backend** - Azure Functions for scalable event processing
+- **Enterprise Security** - Managed identity authentication with comprehensive RBAC
+- **Professional UI** - Modern dashboard with glassmorphism effects and dark theme
+- **CI/CD Ready** - Azure DevOps pipelines with Infrastructure as Code
 
-## 🎯 Quick Start
+## Quick Start
 
 ### Option 1: Container Deployment (Recommended)
 
@@ -50,7 +50,7 @@ azd init --template ./
 azd up
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
@@ -76,9 +76,9 @@ azd up
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 📊 Project Status
+## Project Status
 
-### ✅ Production Ready Components
+### Production Ready Components
 
 - **Infrastructure**: Comprehensive Terraform with RBAC *(No manual `az` commands needed!)*
 - **Backend APIs**: Azure Functions with managed identity authentication
@@ -87,7 +87,7 @@ azd up
 - **CI/CD**: Azure DevOps pipelines with multiple deployment strategies
 - **Security**: Enterprise-grade managed identity with least-privilege access
 
-### 🆕 Latest Enhancements
+### Latest Enhancements
 
 - **Container Support**: Optimized Dockerfiles for production deployment
 - **Modular UI**: Widget-based architecture inspired by MunkiReport
@@ -95,9 +95,9 @@ azd up
 - **Local Development**: Complete Docker Compose environment
 - **RBAC Migration**: All permissions managed by Terraform (zero manual commands)
 
-## 🔥 Latest Updates
+## Latest Updates
 
-### ✅ Modular System Migration Complete
+### Modular System Migration Complete
 
 The ReportMate dashboard has been fully migrated to use the new modular plugin system:
 
@@ -108,15 +108,15 @@ The ReportMate dashboard has been fully migrated to use the new modular plugin s
 - **Legacy Preserved**: Original static dashboard backed up for reference
 
 **Key Benefits:**
-- 🧩 **Extensible**: Add new widgets and functionality through modules
-- 🔄 **Dynamic**: Install/remove modules without code changes
-- 🏗️ **Distributed**: Each module can be maintained independently
-- 🌍 **Community**: 3rd parties can create and distribute modules
-- 🔒 **Secure**: Modules are sandboxed and validated before loading
+- **Extensible**: Add new widgets and functionality through modules
+- **Dynamic**: Install/remove modules without code changes
+- **Distributed**: Each module can be maintained independently
+- **Community**: 3rd parties can create and distribute modules
+- **Secure**: Modules are sandboxed and validated before loading
 
 See [`docs/MODULE_SYSTEM.md`](./docs/MODULE_SYSTEM.md) for complete technical details.
 
-## 🎮 Test Your Deployment
+## Test Your Deployment
 
 Once deployed, test with your devices:
 
@@ -141,7 +141,7 @@ curl -X POST https://reportmate-api.azurewebsites.net/api/ingest \
 # https://reportmate-frontend.{random}.canadacentral.azurecontainerapps.io
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 ReportMate/
@@ -169,7 +169,7 @@ ReportMate/
     └── TROUBLESHOOTING.md      # Support and debugging
 ```
 
-## 🚀 Deployment Options
+## Deployment Options
 
 | Option | Use Case | Time | Features |
 |--------|----------|------|----------|
@@ -178,14 +178,14 @@ ReportMate/
 | **Hybrid** | Migration, A/B testing | 45 min | Best of both worlds |
 | **Local Development** | Testing, development | 10 min | Full environment locally |
 
-## 📖 Documentation
+## Documentation
 
-- **[🚀 Deployment Guide](./docs/DEPLOYMENT.md)** - Complete deployment instructions
-- **[🛠️ Development Guide](./docs/DEVELOPMENT.md)** - Modular architecture and development
-- **[🆘 Troubleshooting](./docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[📊 Frontend README](./apps/www/README.md)** - Dashboard-specific documentation
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Complete deployment instructions
+- **[Development Guide](./docs/DEVELOPMENT.md)** - Modular architecture and development
+- **[Troubleshooting](./docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Frontend README](./apps/www/README.md)** - Dashboard-specific documentation
 
-## 🔐 Security & Compliance
+## Security & Compliance
 
 - **Managed Identity**: No hardcoded credentials or connection strings
 - **RBAC**: Comprehensive role-based access control via Terraform
@@ -193,7 +193,7 @@ ReportMate/
 - **Enterprise Ready**: Supports Azure AD integration and conditional access
 - **Audit Trail**: All permissions and access tracked in Azure logs
 
-## 🤝 Contributing
+## Contributing
 
 1. **Fork** the repository
 2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
@@ -201,11 +201,11 @@ ReportMate/
 4. **Push** to the branch: `git push origin feature/amazing-feature`
 5. **Open** a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **MunkiReport** - UI design inspiration and modular architecture concepts
 - **Azure Engineering** - For excellent container and serverless services
@@ -213,7 +213,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Ready for enterprise device management at scale!** 🎉
+**Ready for enterprise device management at scale!**
 
 For immediate deployment, see **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** for step-by-step instructions.
 
