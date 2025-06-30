@@ -216,3 +216,32 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Ready for enterprise device management at scale!** 🎉
 
 For immediate deployment, see **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** for step-by-step instructions.
+
+
+## Project Structure Update
+
+**Web Dashboard Split**: The web dashboard has been split into a separate open-source repository:
+
+- **Public Repository**: https://github.com/reportmate/reportmate-app-web
+- **Local Path**: `apps/www` (now a git submodule)
+
+### Working with the Submodule
+
+To clone this repository with the web dashboard:
+```bash
+git clone --recursive https://github.com/your-org/reportmate.git
+```
+
+To update the submodule to the latest version:
+```bash
+git submodule update --remote apps/www
+```
+
+To make changes to the web dashboard:
+1. Navigate to `apps/www`
+2. Make your changes
+3. Commit and push to the public repository
+4. Update the parent repository to reference the new commit
+
+This allows the web dashboard to be developed independently while remaining integrated with the main ReportMate infrastructure.
+
