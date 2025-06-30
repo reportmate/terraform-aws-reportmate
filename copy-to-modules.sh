@@ -14,13 +14,13 @@ echo "Target: $BASE_DIR"
 
 # Create base directory structure
 echo "📁 Creating directory structure..."
-mkdir -p "$BASE_DIR"/{reportmate-app-csharp,reportmate-app-swift,reportmate-app-react,reportmate-infra-aws,reportmate-infra-azure,reportmate-module-core,reportmate-module-hardware,reportmate-module-software}
+mkdir -p "$BASE_DIR"/{reportmate-app-csharp,reportmate-app-swift,reportmate-app-web,reportmate-infra-aws,reportmate-infra-azure,reportmate-module-core,reportmate-module-hardware,reportmate-module-software}
 
-# Copy React/Next.js app (apps/www -> reportmate-app-react)
+# Copy React/Next.js app (apps/www -> reportmate-app-web)
 echo "📱 Copying React app..."
 if [ -d "$SOURCE_DIR/apps/www" ]; then
-    cp -r "$SOURCE_DIR/apps/www/"* "$BASE_DIR/reportmate-app-react/"
-    echo "✅ React app copied to reportmate-app-react"
+    cp -r "$SOURCE_DIR/apps/www/"* "$BASE_DIR/reportmate-app-web/"
+    echo "✅ React app copied to reportmate-app-web"
 else
     echo "❌ No www app found"
 fi
@@ -119,7 +119,7 @@ echo ""
 echo "🎉 Modularization complete!"
 echo ""
 echo "📊 Summary:"
-echo "   📱 reportmate-app-react: Next.js web dashboard"
+echo "   📱 reportmate-app-web: Next.js web dashboard"
 echo "   🔷 reportmate-app-csharp: C# client libraries"
 echo "   🍎 reportmate-app-swift: Swift/iOS client libraries"
 echo "   ☁️  reportmate-infra-azure: Complete Azure infrastructure"
