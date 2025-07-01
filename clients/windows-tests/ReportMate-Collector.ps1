@@ -12,13 +12,14 @@ param(
     [switch]$TestMode = $false,
     
     [Parameter(Mandatory=$false)]
-    [switch]$Verbose = $false
+    [switch]$VerboseOutput = $false
 )
 
 # Registry paths for ReportMate configuration
 $REGISTRY_PATH = "HKLM:\SOFTWARE\Policies\ReportMate"
 $REGISTRY_PASSPHRASE_KEY = "Passphrase"
 $REGISTRY_SERVER_KEY = "ServerUrl"
+$REGISTRY_DEVICE_REGISTERED_KEY = "DeviceRegistered"
 
 # Default server URL (fallback)
 $DEFAULT_SERVER_URL = "https://reportmate-api.azurewebsites.net"
@@ -28,7 +29,7 @@ function Write-Log {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
     
-    if ($Verbose -or $Level -eq "ERROR") {
+    if ($VerboseOutput -or $Level -eq "ERROR") {
         Write-Host $logMessage
     }
     
@@ -127,13 +128,14 @@ function Send-DataToReportMate {
         [string]$ServerUrl,
         [string]$Passphrase,
         [string]$DataKind,
-        [object]$Data
+        [object]$Data,
+        [string]$DeviceSerial
     )
     
     try {
         # Prepare payload
         $payload = @{
-            device = $env:COMPUTERNAME
+            device = $DeviceSerial
             kind = $DataKind
             ts = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
             payload = $Data
@@ -146,11 +148,11 @@ function Send-DataToReportMate {
         
         $json = $payload | ConvertTo-Json -Depth 10 -Compress
         
-        Write-Log "Sending $DataKind data to ReportMate..." "DEBUG"
+        Write-Log "Sending $DataKind data to ReportMate for device $DeviceSerial..." "DEBUG"
         
-        $response = Invoke-WebRequest -Uri "$ServerUrl/api/ingest" -Method POST -Body $json -ContentType "application/json" -TimeoutSec 30 -UseBasicParsing
+        $response = Invoke-WebRequest -Uri "$ServerUrl/api/events" -Method POST -Body $json -ContentType "application/json" -TimeoutSec 30 -UseBasicParsing
         
-        if ($response.StatusCode -eq 202) {
+        if ($response.StatusCode -eq 200) {
             Write-Log "Successfully sent $DataKind data to ReportMate"
             return $true
         } else {
@@ -159,10 +161,21 @@ function Send-DataToReportMate {
         }
     }
     catch {
-        if ($_.Exception.Message -like "*401*") {
+        $errorMessage = $_.Exception.Message
+        $statusCode = $null
+        
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+        
+        if ($statusCode -eq 403) {
+            Write-Log "Device $DeviceSerial is not registered. Events rejected by server." "ERROR"
+        } elseif ($statusCode -eq 400) {
+            Write-Log "Bad request when sending $DataKind data - device serial may be missing" "ERROR"
+        } elseif ($errorMessage -like "*401*") {
             Write-Log "Authentication failed when sending $DataKind data - check passphrase configuration" "ERROR"
         } else {
-            Write-Log "Failed to send $DataKind data: $($_.Exception.Message)" "ERROR"
+            Write-Log "Failed to send $DataKind data: $errorMessage" "ERROR"
         }
         return $false
     }
@@ -215,6 +228,98 @@ function Test-ReportMateConnection {
     return Send-DataToReportMate -ServerUrl $ServerUrl -Passphrase $Passphrase -DataKind "test" -Data $testData
 }
 
+function Get-DeviceSerial {
+    try {
+        # Try to get serial number from WMI
+        $serial = Get-WmiObject -Class Win32_BIOS | Select-Object -ExpandProperty SerialNumber
+        if ($serial -and $serial.Trim() -ne "") {
+            return $serial.Trim()
+        }
+        
+        # Fallback to computer name
+        $computerName = $env:COMPUTERNAME
+        if ($computerName) {
+            return $computerName
+        }
+        
+        throw "Unable to determine device serial number"
+    }
+    catch {
+        Write-Log "Failed to get device serial: $($_.Exception.Message)" "ERROR"
+        return $env:COMPUTERNAME
+    }
+}
+
+function Test-DeviceRegistration {
+    param([string]$ServerUrl, [string]$DeviceSerial)
+    
+    try {
+        $checkUrl = "$ServerUrl/api/device/$DeviceSerial"
+        Write-Log "Checking if device is registered: $checkUrl"
+        
+        $response = Invoke-RestMethod -Uri $checkUrl -Method GET -TimeoutSec 30
+        
+        if ($response -and $response.deviceInfo) {
+            Write-Log "Device $DeviceSerial is registered as: $($response.deviceInfo.name)"
+            return $true
+        }
+        
+        return $false
+    }
+    catch {
+        $statusCode = $null
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+        
+        if ($statusCode -eq 404) {
+            Write-Log "Device $DeviceSerial is not registered (404)" "ERROR"
+            return $false
+        } elseif ($statusCode -eq 403) {
+            Write-Log "Device $DeviceSerial registration check failed (403)" "ERROR"
+            return $false
+        }
+        
+        Write-Log "Failed to check device registration: $($_.Exception.Message)" "WARNING"
+        return $false
+    }
+}
+
+function Ensure-DeviceRegistered {
+    param([string]$ServerUrl, [string]$DeviceSerial)
+    
+    # Check if device is registered
+    if (Test-DeviceRegistration -ServerUrl $ServerUrl -DeviceSerial $DeviceSerial) {
+        return $true
+    }
+    
+    Write-Log "Device $DeviceSerial is not registered. Attempting registration..." "WARNING"
+    
+    # Try to run registration script
+    $scriptPath = Join-Path (Split-Path $MyInvocation.ScriptName) "Register-Device.ps1"
+    
+    if (Test-Path $scriptPath) {
+        try {
+            Write-Log "Running device registration script: $scriptPath"
+            & $scriptPath -ServerUrl $ServerUrl -SerialNumber $DeviceSerial -VerboseOutput:$VerboseOutput
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log "Device registration completed successfully"
+                return $true
+            } else {
+                Write-Log "Device registration script failed with exit code: $LASTEXITCODE" "ERROR"
+            }
+        }
+        catch {
+            Write-Log "Failed to run registration script: $($_.Exception.Message)" "ERROR"
+        }
+    } else {
+        Write-Log "Registration script not found at: $scriptPath" "ERROR"
+    }
+    
+    return $false
+}
+
 # Main execution
 Write-Host ""
 Write-Host "🔍 ReportMate osquery Data Collector" -ForegroundColor Cyan
@@ -240,7 +345,7 @@ $config = Get-ReportMateConfiguration
 
 Write-Log "ReportMate Configuration:"
 Write-Log "  Server URL: $($config.ServerUrl)"
-Write-Log "  Authentication: $($config.Passphrase ? 'Enabled' : 'Disabled')"
+Write-Log "  Authentication: $(if ($config.Passphrase) { 'Enabled' } else { 'Disabled' })"
 
 # Test mode - just test connection
 if ($TestMode) {
@@ -267,6 +372,17 @@ if ($systemData.Count -eq 0) {
     exit 1
 }
 
+# Ensure device is registered
+Write-Host ""
+Write-Log "Ensuring device is registered..."
+
+$deviceSerial = Get-DeviceSerial
+
+if (!(Ensure-DeviceRegistered -ServerUrl $config.ServerUrl -DeviceSerial $deviceSerial)) {
+    Write-Host "❌ Device registration failed! Please check logs." -ForegroundColor Red
+    exit 1
+}
+
 # Send data to ReportMate
 Write-Host ""
 Write-Log "Sending data to ReportMate..."
@@ -277,7 +393,7 @@ $totalCount = $systemData.Count
 foreach ($dataType in $systemData.Keys) {
     $data = $systemData[$dataType]
     
-    if (Send-DataToReportMate -ServerUrl $config.ServerUrl -Passphrase $config.Passphrase -DataKind $dataType -Data $data) {
+    if (Send-DataToReportMate -ServerUrl $config.ServerUrl -Passphrase $config.Passphrase -DataKind $dataType -Data $data -DeviceSerial $deviceSerial) {
         $successCount++
     }
     
@@ -289,9 +405,9 @@ Write-Host ""
 Write-Log "Data collection complete: $successCount/$totalCount datasets sent successfully"
 
 if ($successCount -eq $totalCount) {
-    Write-Host "✅ All data sent successfully!" -ForegroundColor Green
+    Write-Host "All data sent successfully!" -ForegroundColor Green
     exit 0
 } else {
-    Write-Host "⚠️  Some data failed to send. Check logs for details." -ForegroundColor Yellow
+    Write-Host "Some data failed to send. Check logs for details." -ForegroundColor Yellow
     exit 1
 }

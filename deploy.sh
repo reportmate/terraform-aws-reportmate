@@ -212,15 +212,18 @@ check_prerequisites() {
     
     missing_tools=()
     
-    if ! command -v terraform &> /dev/null; then
+    # Only check for terraform if deploying infrastructure
+    if [ "$DEPLOY_INFRA" = true ] && ! command -v terraform &> /dev/null; then
         missing_tools+=("terraform")
     fi
     
-    if ! command -v az &> /dev/null; then
+    # Only check for azure-cli if deploying infrastructure or containers
+    if ([ "$DEPLOY_INFRA" = true ] || [ "$DEPLOY_CONTAINERS" = true ]) && ! command -v az &> /dev/null; then
         missing_tools+=("azure-cli")
     fi
     
-    if ! command -v docker &> /dev/null; then
+    # Only check for docker if deploying containers
+    if [ "$DEPLOY_CONTAINERS" = true ] && ! command -v docker &> /dev/null; then
         missing_tools+=("docker")
     fi
     
@@ -519,6 +522,48 @@ update_container_apps() {
     sleep 10
     
     echo -e "${GREEN}Container deployment complete! Apps will update automatically.${NC}"
+    
+    # Force update container apps to ensure they pull the latest images immediately
+    echo -e "${YELLOW}🔄 Forcing container app updates to pull latest images...${NC}"
+    
+    # Update based on environment setting
+    if [ "$ENVIRONMENT" = "dev" ] || [ "$ENVIRONMENT" = "both" ]; then
+        echo -e "${BLUE}Updating development environment container apps...${NC}"
+        
+        # Update frontend dev
+        az containerapp update \
+            --name reportmate-frontend-dev \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_LOGIN_SERVER/reportmate:latest \
+            --output table 2>/dev/null && echo -e "${GREEN}✅ Dev frontend updated${NC}" || echo -e "${YELLOW}⚠️  Dev frontend update failed or app doesn't exist${NC}"
+        
+        # Update functions dev
+        az containerapp update \
+            --name reportmate-functions-dev \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_LOGIN_SERVER/reportmate-functions:latest \
+            --output table 2>/dev/null && echo -e "${GREEN}✅ Dev functions updated${NC}" || echo -e "${YELLOW}⚠️  Dev functions update failed or app doesn't exist${NC}"
+    fi
+    
+    if [ "$ENVIRONMENT" = "prod" ] || [ "$ENVIRONMENT" = "both" ]; then
+        echo -e "${BLUE}Updating production environment container apps...${NC}"
+        
+        # Update frontend prod
+        az containerapp update \
+            --name reportmate-frontend-prod \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_LOGIN_SERVER/reportmate:latest \
+            --output table 2>/dev/null && echo -e "${GREEN}✅ Prod frontend updated${NC}" || echo -e "${YELLOW}⚠️  Prod frontend update failed or app doesn't exist${NC}"
+        
+        # Update functions prod
+        az containerapp update \
+            --name reportmate-functions-prod \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_LOGIN_SERVER/reportmate-functions:latest \
+            --output table 2>/dev/null && echo -e "${GREEN}✅ Prod functions updated${NC}" || echo -e "${YELLOW}⚠️  Prod functions update failed or app doesn't exist${NC}"
+    fi
+    
+    echo -e "${GREEN}Container app updates completed!${NC}"
 }
 
 setup_database() {
