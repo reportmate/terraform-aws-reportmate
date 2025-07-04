@@ -122,10 +122,10 @@ Once deployed, test with your devices:
 
 ```bash
 # Health check
-curl https://reportmate-api.azurewebsites.net/api/negotiate?device=test-device
+curl https://your-functions-api.azurewebsites.net/api/negotiate?device=test-device
 
 # Send test event
-curl -X POST https://reportmate-api.azurewebsites.net/api/ingest \
+curl -X POST https://your-functions-api.azurewebsites.net/api/ingest \
   -H "Content-Type: application/json" \
   -d '{
     "device": "device-001",

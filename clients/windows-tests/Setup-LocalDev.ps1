@@ -99,7 +99,7 @@ if (!(Test-AdminRights)) {
 
 if ($Reset) {
     Write-Host "🔄 Resetting to production configuration..." -ForegroundColor Yellow
-    Set-RegistryValue -Path $REGISTRY_PATH -Name $REGISTRY_SERVER_KEY -Value "https://reportmate-api.azurewebsites.net"
+    Set-RegistryValue -Path $REGISTRY_PATH -Name $REGISTRY_SERVER_KEY -Value ($env:REPORTMATE_API_URL -or "https://your-reportmate-api.com")
     if ($Passphrase) {
         Set-RegistryValue -Path $REGISTRY_PATH -Name $REGISTRY_PASSPHRASE_KEY -Value $Passphrase
     } else {

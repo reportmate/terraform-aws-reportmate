@@ -16,7 +16,7 @@ None - all parameters have default values, but some should be customized for pro
 
 | Parameter | Type | Default Value | Description |
 |-----------|------|---------------|-------------|
-| `ServerUrl` | String | `https://reportmate-api.azurewebsites.net` | The ReportMate server endpoint URL |
+| `ServerUrl` | String | `""` (requires configuration) | The ReportMate server endpoint URL |
 | `Passphrase` | String | `""` (empty) | Authentication passphrase for secure communication |
 | `InstallPath` | String | `C:\Program Files\ReportMate` | Installation directory path |
 | `Uninstall` | Switch | `$false` | Removes the ReportMate client installation |
@@ -130,7 +130,7 @@ Registry path: `HKLM:\SOFTWARE\Policies\ReportMate`
 
 ### ⚠️ Important Updates Needed
 
-**Current Default Server URL**: The installer currently defaults to `https://reportmate-api.azurewebsites.net` which should be updated for production use.
+**Server URL Configuration**: The installer requires a valid server URL to be configured via environment variables or registry settings. Common environment variables include `REPORTMATE_API_URL`, `API_URL`, or `SERVER_URL`.
 
 **Recommended Changes**:
 

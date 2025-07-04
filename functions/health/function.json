@@ -6,8 +6,8 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get", "post"],
-      "route": "device/{deviceId?}"
+      "methods": ["get"],
+      "route": "health"
     },
     {
       "type": "http",

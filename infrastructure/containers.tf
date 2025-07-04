@@ -63,6 +63,11 @@ resource "azurerm_container_app" "frontend_dev" {
       }
 
       env {
+        name  = "DATABASE_URL"
+        value = "postgresql://${var.db_username}:${var.db_password}@${azurerm_postgresql_flexible_server.pg.fqdn}:5432/${azurerm_postgresql_flexible_server_database.db.name}?sslmode=require"
+      }
+
+      env {
         name  = "NEXT_PUBLIC_WPS_URL"
         value = "wss://${azurerm_web_pubsub.wps.hostname}/client/hubs/fleet"
       }
@@ -136,6 +141,11 @@ resource "azurerm_container_app" "frontend_prod" {
       env {
         name  = "NODE_ENV"
         value = "production"
+      }
+
+      env {
+        name  = "DATABASE_URL"
+        value = "postgresql://${var.db_username}:${var.db_password}@${azurerm_postgresql_flexible_server.pg.fqdn}:5432/${azurerm_postgresql_flexible_server_database.db.name}?sslmode=require"
       }
 
       env {

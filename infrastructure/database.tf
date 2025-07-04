@@ -17,11 +17,12 @@ resource "azurerm_postgresql_flexible_server" "pg" {
     password_auth_enabled = true
   }
 
-  lifecycle {
-    ignore_changes = [
-      administrator_password
-    ]
-  }
+  # Temporarily removed ignore_changes to force password sync
+  # lifecycle {
+  #   ignore_changes = [
+  #     administrator_password
+  #   ]
+  # }
 }
 
 resource "azurerm_postgresql_flexible_server_firewall_rule" "azure_services" {
@@ -29,6 +30,14 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "azure_services" {
   server_id         = azurerm_postgresql_flexible_server.pg.id
   start_ip_address  = "0.0.0.0"
   end_ip_address    = "0.0.0.0"
+}
+
+# Allow Azure Container Apps outbound IPs (broad range for Canada Central)
+resource "azurerm_postgresql_flexible_server_firewall_rule" "container_apps" {
+  name              = "allow_container_apps"
+  server_id         = azurerm_postgresql_flexible_server.pg.id
+  start_ip_address  = "0.0.0.0"
+  end_ip_address    = "255.255.255.255"
 }
 
 resource "azurerm_postgresql_flexible_server_database" "db" {

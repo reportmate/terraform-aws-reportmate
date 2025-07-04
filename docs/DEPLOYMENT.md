@@ -526,3 +526,30 @@ Your ReportMate deployment is now ready for enterprise device management:
 ---
 
 **Your enterprise-grade device management platform is live!** 🎊
+
+---
+
+## 🌐 Front Door & Container Stability
+
+ReportMate uses Azure Front Door to ensure stable connections when containers are updated.
+
+### Custom Domain Configuration
+- **Domain**: https://reportmate.ecuad.ca
+- **CNAME**: Points to Front Door endpoint
+- **Certificate**: Automatically managed by Azure
+
+### Stability Features
+- ✅ **Zero Downtime Updates**: Containers can be redeployed without breaking the website
+- ✅ **Automatic Health Checks**: Traffic only goes to healthy containers
+- ✅ **Stable FQDNs**: Container App FQDNs remain consistent across updates
+- ✅ **Terraform Managed**: All routing updates handled automatically
+
+### Update Process
+1. Container is updated via `deploy.sh` or pipeline
+2. Front Door health checks verify new container is ready
+3. Traffic seamlessly routes to updated container
+4. No DNS changes or manual intervention required
+
+**📖 Details**: See [FRONT_DOOR_STABILITY.md](FRONT_DOOR_STABILITY.md) for complete technical details.
+
+---

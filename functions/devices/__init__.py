@@ -38,24 +38,24 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             devices = []
             for row in rows:
                 device = {
-                    'id': row[0],
-                    'name': row[1],
-                    'model': row[2],
-                    'os': row[3],
-                    'serialNumber': row[4],
-                    'assetTag': row[5],
-                    'ipAddress': row[6],
-                    'macAddress': row[7],
-                    'location': row[8],
+                    'id': row[0],  # UUID device ID
+                    'name': row[1] or 'Unknown Device',
+                    'model': row[2] or 'Unknown Model', 
+                    'os': row[3] or 'Unknown OS',
+                    'serialNumber': row[4] or row[0],  # Use ID as fallback
+                    'assetTag': row[5] or '',
+                    'ipAddress': row[6] or 'Unknown',
+                    'macAddress': row[7] or 'Unknown',
+                    'location': row[8] or 'Unassigned',
                     'lastSeen': row[9].isoformat() if row[9] else None,
-                    'status': row[10],
-                    'uptime': row[11],
+                    'status': row[10] or 'unknown',
+                    'uptime': row[11] or '0 days',
                     'totalEvents': row[12] or 0,
                     'lastEventTime': row[13].isoformat() if row[13] else None,
-                    'processor': row[14],
-                    'memory': row[15],
-                    'storage': row[16],
-                    'architecture': row[17],
+                    'processor': row[14] or 'Unknown',
+                    'memory': row[15] or 'Unknown',
+                    'storage': row[16] or 'Unknown',
+                    'architecture': row[17] or 'Unknown',
                     'diskUtilization': row[18],
                     'memoryUtilization': row[19],
                     'cpuUtilization': row[20],
@@ -66,9 +66,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             
             return func.HttpResponse(
                 json.dumps({
-                    'success': True,
-                    'devices': devices,
-                    'count': len(devices)
+                    "devices": devices,
+                    "count": len(devices)
                 }),
                 status_code=200,
                 headers={'Content-Type': 'application/json'}

@@ -6,6 +6,9 @@ param(
     [string]$LocalDevUrl = "http://localhost:3000",
     
     [Parameter(Mandatory=$false)]
+    [string]$ProductionUrl = "",
+    
+    [Parameter(Mandatory=$false)]
     [switch]$RestoreProduction = $false,
     
     [Parameter(Mandatory=$false)]
@@ -15,7 +18,14 @@ param(
 # Registry paths (same as the client uses)
 $REGISTRY_PATH = "HKLM:\SOFTWARE\Policies\ReportMate"
 $REGISTRY_SERVER_KEY = "ServerUrl"
-$PRODUCTION_URL = "https://reportmate-api.azurewebsites.net"
+
+# Get production URL from environment variable or parameter
+$PRODUCTION_URL = if ($ProductionUrl) { $ProductionUrl } else { $env:REPORTMATE_PRODUCTION_URL }
+if (-not $PRODUCTION_URL) {
+    $PRODUCTION_URL = "https://reportmate.ecuad.ca"  # Default fallback
+    Write-Warning "No production URL specified. Using default: $PRODUCTION_URL"
+    Write-Warning "Set -ProductionUrl parameter or REPORTMATE_PRODUCTION_URL environment variable to override"
+}
 
 function Test-AdminRights {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()

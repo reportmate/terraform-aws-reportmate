@@ -118,7 +118,8 @@ model Device {
 
   // Normalized Relations
   events               Event[]
-  cimianRuns           CimianRun[]
+  cimian               Cimian[]          // Windows managed installs via Cimian
+  munki                Munki[]           // Mac managed installs via Munki
   hardware             DeviceHardware?
   networkInterfaces    NetworkInterface[]
   mdmInfo              MDMInfo?
@@ -159,8 +160,8 @@ model Event {
   @@map("events")
 }
 
-// Enhanced CimianRun model with device relation
-model CimianRun {
+// Windows Managed Installs via Cimian
+model Cimian {
   id       String   @id @default(uuid())
   deviceId String   @map("device_id")
   device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -169,17 +170,46 @@ model CimianRun {
   duration Int
   details  String?
 
-  // Additional run metadata
+  // Additional Cimian-specific metadata
   runType           String? @map("run_type")
   packagesInstalled Int?    @map("packages_installed")
   packagesUpdated   Int?    @map("packages_updated")
   packagesFailed    Int?    @map("packages_failed")
+  version           String? // Cimian version
+  errors            String?
+  warnings          String?
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([ts])
   @@index([deviceId, ts])
-  @@map("cimian_runs")
+  @@map("cimian")
+}
+
+// Mac Managed Installs via Munki
+model Munki {
+  id       String   @id @default(uuid())
+  deviceId String   @map("device_id")
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  ts       DateTime @db.Timestamptz
+  exitCode Int      @map("exit_code")
+  duration Int
+  details  String?
+
+  // Additional Munki-specific metadata
+  runType           String? @map("run_type")
+  packagesInstalled Int?    @map("packages_installed")
+  packagesUpdated   Int?    @map("packages_updated")
+  packagesFailed    Int?    @map("packages_failed")
+  version           String? // Munki version
+  errors            String?
+  warnings          String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([ts])
+  @@index([deviceId, ts])
+  @@map("munki")
 }
 
 // New model for Device Hardware details (normalized approach)

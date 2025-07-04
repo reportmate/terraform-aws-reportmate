@@ -17,7 +17,7 @@ def _handle_cimian_run(row: dict, cur):
     payload = row["payload"]
     cur.execute(
         """
-        insert into cimian_runs(id, device, ts, exit_code, duration, details)
+        insert into cimian(id, device_id, ts, exit_code, duration, details)
         values (%s,%s,%s,%s,%s,%s)
         on conflict do nothing
         """,
@@ -32,12 +32,32 @@ def _handle_cimian_run(row: dict, cur):
     )
 
 
-def _ensure_device_exists(device_id: str, passphrase_hash: str | None, cur):
+def _handle_munki_run(row: dict, cur):
+    payload = row["payload"]
+    cur.execute(
+        """
+        insert into munki(id, device_id, ts, exit_code, duration, details)
+        values (%s,%s,%s,%s,%s,%s)
+        on conflict do nothing
+        """,
+        (
+            row["id"],
+            row["device"],
+            row["ts"],
+            payload.get("exitCode"),
+            payload.get("duration"),
+            payload.get("details"),
+        ),
+    )
+
+
+def _ensure_device_exists(device_id: str, row: dict, cur):
     """
     Ensure device exists in database and assign to machine group if passphrase provided.
-    Similar to MunkiReport's _register function.
+    Also handle device data from new_client events.
     """
     machine_group_id = None
+    passphrase_hash = row.get("passphrase_hash")
     
     # If passphrase hash is provided, find matching machine group
     if passphrase_hash:
@@ -52,18 +72,46 @@ def _ensure_device_exists(device_id: str, passphrase_hash: str | None, cur):
         else:
             logging.warning(f"No machine group found for passphrase hash: {passphrase_hash[:8]}...")
     
-    # Upsert device with machine group assignment
+    # Extract device info from payload if it's a new_client event
+    name = device_id
+    model = "Unknown"
+    os = "Unknown"
+    manufacturer = "Unknown"
+    
+    if row.get("kind") == "new_client":
+        payload = row.get("payload", {})
+        name = payload.get("name", device_id)
+        model = payload.get("model", "Unknown")
+        os = payload.get("os", "Unknown")
+        manufacturer = payload.get("manufacturer", "Unknown")
+        logging.info(f"New client registration: {device_id} ({name})")
+    
+    # For device_data events, extract device info from the nested device object
+    elif row.get("kind") == "device_data":
+        payload = row.get("payload", {})
+        device_info = payload.get("device", {})
+        if isinstance(device_info, dict):
+            name = device_info.get("ComputerName", device_info.get("name", device_id))
+            model = device_info.get("Model", device_info.get("model", "Unknown"))
+            os = device_info.get("OperatingSystem", device_info.get("os", "Unknown"))
+            manufacturer = device_info.get("Manufacturer", device_info.get("manufacturer", "Unknown"))
+    
+    # Upsert device with comprehensive info
     cur.execute(
         """
-        INSERT INTO devices (id, name, machine_group_id, last_seen, status, created_at, updated_at)
-        VALUES (%s, %s, %s, NOW(), 'active', NOW(), NOW())
+        INSERT INTO devices (id, name, model, os, manufacturer, machine_group_id, last_seen, status, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, NOW(), 'active', NOW(), NOW())
         ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            model = EXCLUDED.model,
+            os = EXCLUDED.os,
+            manufacturer = EXCLUDED.manufacturer,
             machine_group_id = COALESCE(EXCLUDED.machine_group_id, devices.machine_group_id),
             last_seen = NOW(),
             status = 'active',
             updated_at = NOW()
         """,
-        (device_id, device_id, machine_group_id)
+        (device_id, name, model, os, manufacturer, machine_group_id)
     )
 
 
@@ -75,11 +123,12 @@ def main(msg: func.QueueMessage):
         cur = conn.cursor()
         
         # Ensure device exists and assign to machine group if applicable
-        passphrase_hash = row.get("passphrase_hash")
-        _ensure_device_exists(row["device"], passphrase_hash, cur)
+        _ensure_device_exists(row["device"], row, cur)
         
         if row["kind"] == "cimian_run":
             _handle_cimian_run(row, cur)
+        elif row["kind"] == "munki_run":
+            _handle_munki_run(row, cur)
         else:
             # generic fallback into events table
             cur.execute(

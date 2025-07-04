@@ -22,6 +22,8 @@ LOCATION="Canada Central"
 ENVIRONMENT="prod"  # Default environment
 
 # Try to get DB_PASSWORD from terraform.tfvars first, then environment, then generate random
+# CRITICAL: For container-only deployments, DB_PASSWORD is not used since we don't touch infrastructure
+# This ensures that container updates cannot accidentally change the database password
 if [ -z "$DB_PASSWORD" ] && [ -f "infrastructure/terraform.tfvars" ]; then
     DB_PASSWORD=$(grep '^db_password' infrastructure/terraform.tfvars | cut -d'"' -f2 2>/dev/null || echo "")
 fi
@@ -31,6 +33,7 @@ IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 # Deployment control flags (default to false, set by command line flags)
 DEPLOY_INFRA=false
 DEPLOY_CONTAINERS=false
+DEPLOY_FUNCTIONS=false
 SETUP_DATABASE=false
 RUN_TESTS=false
 SHOW_HELP=false
@@ -59,6 +62,7 @@ show_usage() {
     echo "  --full                      Run complete deployment (all flags enabled)"
     echo "  --infra                     Deploy infrastructure with Terraform"
     echo "  --containers                Build and push containers to ACR"
+    echo "  --functions                 Deploy Azure Functions only"
     echo "  --database                  Setup database schema and initial data"
     echo "  --test                      Run deployment verification tests"
     echo "  -h, --help                  Show this help message"
@@ -80,6 +84,7 @@ show_usage() {
     echo "  $0 --full --env dev                 # Complete deployment to development"
     echo "  $0 --full --env both                # Deploy to both dev and prod"
     echo "  $0 --containers --env dev           # Only rebuild and push to dev"
+    echo "  $0 --functions                       # Deploy Azure Functions only"
     echo "  $0 --infra --database --env prod    # Deploy infrastructure and setup database for prod"
     echo "  $0 --containers --test --env both   # Build containers for both envs and run tests"
     echo "  $0 --infra --image-tag v1.2.3       # Deploy infra with specific image tag"
@@ -98,6 +103,7 @@ parse_arguments() {
             --full)
                 DEPLOY_INFRA=true
                 DEPLOY_CONTAINERS=true
+                DEPLOY_FUNCTIONS=true
                 SETUP_DATABASE=true
                 RUN_TESTS=true
                 shift
@@ -108,6 +114,10 @@ parse_arguments() {
                 ;;
             --containers)
                 DEPLOY_CONTAINERS=true
+                shift
+                ;;
+            --functions)
+                DEPLOY_FUNCTIONS=true
                 shift
                 ;;
             --database)
@@ -163,7 +173,7 @@ parse_arguments() {
     fi
     
     # Check if at least one action flag is set
-    if [ "$DEPLOY_INFRA" = false ] && [ "$DEPLOY_CONTAINERS" = false ] && [ "$SETUP_DATABASE" = false ] && [ "$RUN_TESTS" = false ]; then
+    if [ "$DEPLOY_INFRA" = false ] && [ "$DEPLOY_CONTAINERS" = false ] && [ "$DEPLOY_FUNCTIONS" = false ] && [ "$SETUP_DATABASE" = false ] && [ "$RUN_TESTS" = false ]; then
         echo -e "${RED}No deployment actions specified${NC}"
         echo "Use --help to see available options, or --full for complete deployment"
         exit 1
@@ -451,6 +461,17 @@ build_and_push_containers() {
     echo -e "${YELLOW}Building frontend container...${NC}"
     cd apps/www
     
+    # Replace API URL placeholder with actual function app URL
+    if [ -n "$FUNCTION_APP_URL" ]; then
+        echo -e "${BLUE}Setting API Base URL to: $FUNCTION_APP_URL${NC}"
+        
+        # Create temporary .env.production with actual URLs
+        sed "s|__API_BASE_URL__|$FUNCTION_APP_URL|g" .env.production > .env.production.tmp
+        mv .env.production.tmp .env.production
+    else
+        echo -e "${YELLOW}⚠️  Function App URL not available, using placeholder${NC}"
+    fi
+    
     docker build \
         --platform linux/amd64 \
         -t reportmate:$IMAGE_TAG \
@@ -564,6 +585,96 @@ update_container_apps() {
     fi
     
     echo -e "${GREEN}Container app updates completed!${NC}"
+}
+
+deploy_functions() {
+    if [ "$DEPLOY_FUNCTIONS" != true ]; then
+        echo -e "${YELLOW}⏭️  Skipping Azure Functions deployment${NC}"
+        return 0
+    fi
+    
+    echo -e "${YELLOW}🚀 Deploying Azure Functions...${NC}"
+    
+    # Get function app name from Terraform outputs
+    cd infrastructure
+    FUNCTION_APP_NAME=$(terraform output -raw function_app_name 2>/dev/null || echo "reportmate-api")
+    cd ..
+    
+    echo -e "${BLUE}Function App Name: $FUNCTION_APP_NAME${NC}"
+    
+    # Deploy functions using Azure CLI
+    echo -e "${YELLOW}📦 Deploying functions source code...${NC}"
+    cd functions
+    
+    # Deploy to Azure Functions directly using zip deployment
+    echo -e "${YELLOW}🚀 Deploying to Azure Functions...${NC}"
+    
+    # Use Azure Functions Core Tools or az CLI for direct deployment
+    if command -v func >/dev/null 2>&1; then
+        echo -e "${BLUE}Using Azure Functions Core Tools...${NC}"
+        func azure functionapp publish $FUNCTION_APP_NAME --python
+    else
+        echo -e "${BLUE}Creating deployment using tar (cross-platform)...${NC}"
+        # Create tar archive which works on both Windows and Unix
+        tar -czf deployment.tar.gz --exclude='.git*' --exclude='__pycache__' --exclude='*.pyc' --exclude='*.log' --exclude='deployment.*' .
+        
+        # Convert tar to zip using Python (available on most systems)
+        python3 -c "
+import tarfile
+import zipfile
+import os
+import tempfile
+
+# Extract tar to temp directory
+with tempfile.TemporaryDirectory() as temp_dir:
+    with tarfile.open('deployment.tar.gz', 'r:gz') as tar:
+        tar.extractall(temp_dir)
+    
+    # Create zip from extracted files
+    with zipfile.ZipFile('deployment.zip', 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arc_name = os.path.relpath(file_path, temp_dir)
+                zip_file.write(file_path, arc_name)
+
+os.remove('deployment.tar.gz')
+print('deployment.zip created successfully')
+"
+        
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Failed to create deployment package${NC}"
+            exit 1
+        fi
+        
+        # Deploy using Azure CLI
+        az functionapp deployment source config-zip \
+            --resource-group $RESOURCE_GROUP \
+            --name $FUNCTION_APP_NAME \
+            --src deployment.zip
+    fi
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Azure Functions deployment failed${NC}"
+        exit 1
+    fi
+    
+    # Clean up deployment package if it exists
+    if [ -f "deployment.zip" ]; then
+        rm deployment.zip
+    fi
+    
+    cd ..
+    
+    echo -e "${GREEN}✅ Azure Functions deployed successfully!${NC}"
+    
+    # Restart function app to ensure changes take effect
+    echo -e "${YELLOW}🔄 Restarting function app...${NC}"
+    az functionapp restart \
+        --resource-group $RESOURCE_GROUP \
+        --name $FUNCTION_APP_NAME
+    
+    echo -e "${GREEN}Azure Functions deployment complete!${NC}"
 }
 
 setup_database() {
@@ -690,6 +801,7 @@ main() {
     get_infrastructure_outputs
     build_and_push_containers
     update_container_apps
+    deploy_functions
     setup_database
     run_deployment_tests
     display_summary

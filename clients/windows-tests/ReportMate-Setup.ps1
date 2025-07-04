@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ServerUrl = "https://reportmate-api.azurewebsites.net",
+    [string]$ServerUrl = $env:REPORTMATE_API_URL,
     
     [Parameter(Mandatory=$false)]
     [string]$Passphrase = "",

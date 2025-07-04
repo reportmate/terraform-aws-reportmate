@@ -89,12 +89,12 @@ output "frontend_url" {
 
 # Front Door specific outputs
 output "frontdoor_endpoint" {
-  value = var.enable_custom_domain && var.custom_domain_name != "" ? azurerm_cdn_frontdoor_endpoint.frontend.host_name : null
+  value = var.enable_custom_domain && var.custom_domain_name != "" ? azurerm_cdn_frontdoor_endpoint.frontend[0].host_name : null
   description = "Azure Front Door endpoint hostname"
 }
 
 output "frontdoor_validation_token" {
-  value = var.enable_custom_domain && var.custom_domain_name != "" ? azurerm_cdn_frontdoor_custom_domain.frontend.validation_token : null
+  value = var.enable_custom_domain && var.custom_domain_name != "" ? azurerm_cdn_frontdoor_custom_domain.frontend[0].validation_token : null
   description = "Domain validation token for DNS verification (required for custom domain setup)"
 }
 
@@ -110,12 +110,12 @@ output "dns_setup_instructions" {
     cname_record = {
       name  = replace(var.custom_domain_name, ".ecuad.ca", "")
       type  = "CNAME"
-      value = azurerm_cdn_frontdoor_endpoint.frontend.host_name
+      value = azurerm_cdn_frontdoor_endpoint.frontend[0].host_name
     }
     txt_record = {
       name  = "_dnsauth.${replace(var.custom_domain_name, ".ecuad.ca", "")}"
       type  = "TXT"  
-      value = azurerm_cdn_frontdoor_custom_domain.frontend.validation_token
+      value = azurerm_cdn_frontdoor_custom_domain.frontend[0].validation_token
     }
     instructions = "Add both DNS records, then run 'terraform apply' again after ~45 minutes for certificate issuance"
   } : null

@@ -21,8 +21,8 @@ $REGISTRY_PASSPHRASE_KEY = "Passphrase"
 $REGISTRY_SERVER_KEY = "ServerUrl"
 $REGISTRY_DEVICE_REGISTERED_KEY = "DeviceRegistered"
 
-# Default server URL
-$DEFAULT_SERVER_URL = "https://reportmate-api.azurewebsites.net"
+# Default server URL - should be configured via registry or environment variable
+$DEFAULT_SERVER_URL = $env:REPORTMATE_API_URL
 
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")

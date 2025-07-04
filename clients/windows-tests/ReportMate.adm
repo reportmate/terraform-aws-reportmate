@@ -10,7 +10,7 @@ CATEGORY !!ReportMate
             EXPLAIN !!ServerUrl_Help
             PART !!ServerUrl_Part EDITTEXT
                 VALUENAME "ServerUrl"
-                DEFAULT "https://reportmate-api.azurewebsites.net"
+                DEFAULT "https://your-reportmate-api.com"
                 MAXLEN 255
             END PART
         END POLICY
@@ -65,7 +65,7 @@ ReportMate="ReportMate"
 ClientConfiguration="Client Configuration"
 
 ServerUrl="ReportMate Server URL"
-ServerUrl_Help="Specifies the URL of the ReportMate server where clients will send data. This should include the protocol (https://) and domain name. Example: https://reportmate-api.azurewebsites.net"
+ServerUrl_Help="Specifies the URL of the ReportMate server where clients will send data. This should include the protocol (https://) and domain name. Example: https://your-reportmate-api.com"
 ServerUrl_Part="Server URL:"
 
 Passphrase="Client Authentication Passphrase"
