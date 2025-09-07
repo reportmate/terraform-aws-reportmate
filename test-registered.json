@@ -1,8 +1,0 @@
-{
-  "device": "TEST-DEVICE-001",
-  "kind": "test",
-  "ts": "2025-06-30T15:45:00Z",
-  "payload": {
-    "message": "This should succeed because device is registered"
-  }
-}
