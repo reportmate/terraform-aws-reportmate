@@ -12,7 +12,45 @@ POOL = get_pool()
 def main(req: func.HttpRequest) -> func.HttpResponse:
     """
     GET /api/events - Returns recent events from the database
+    POST /api/events - Accept Windows client event data (temporarily just log it)
     """
+    
+    if req.method == "POST":
+        return handle_post_events(req)
+    else:
+        return handle_get_events(req)
+
+
+def handle_post_events(req: func.HttpRequest) -> func.HttpResponse:
+    """Handle POST requests from Windows client - temporary implementation"""
+    try:
+        # Parse Windows client format
+        body = req.get_json()
+        logging.info(f"Received POST to /api/events with payload size: {len(json.dumps(body)) if body else 0} bytes")
+        
+        # For now, just log and return success
+        # TODO: Queue the data for processing once queue is configured
+        if body:
+            device = body.get('Device', 'unknown')
+            kind = body.get('Kind', 'unknown')
+            logging.info(f"Windows client data received - Device: {device}, Kind: {kind}")
+        
+        # Return success for now
+        return func.HttpResponse(
+            json.dumps({"status": "accepted", "message": "Data received and logged"}),
+            status_code=202,
+            headers={'Content-Type': 'application/json'}
+        )
+            
+    except Exception as e:
+        logging.error(f"Error processing POST to /api/events: {str(e)}")
+        return func.HttpResponse(
+            f"Internal server error: {str(e)}", status_code=500
+        )
+
+
+def handle_get_events(req: func.HttpRequest) -> func.HttpResponse:
+    """Handle GET requests for retrieving events"""
     try:
         limit = int(req.params.get('limit', '50'))
         device_id = req.params.get('device')

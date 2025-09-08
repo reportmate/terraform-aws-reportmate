@@ -98,6 +98,9 @@ model Device {
   machineGroupId Int?          @map("machine_group_id")
   machineGroup   MachineGroup? @relation(fields: [machineGroupId], references: [id], onDelete: SetNull)
 
+  // Client information
+  clientVersion String? @map("client_version")
+
   // Basic hardware fields (most commonly queried)
   processor     String?
   memory        String?

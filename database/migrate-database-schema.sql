@@ -247,6 +247,19 @@ WHERE machine_group_id IS NULL;
 -- Commit transaction
 COMMIT;
 
+-- Add client_version column to devices table if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'devices' AND column_name = 'client_version'
+    ) THEN
+        ALTER TABLE devices ADD COLUMN client_version VARCHAR(50);
+        -- Add comment for documentation
+        COMMENT ON COLUMN devices.client_version IS 'Version of the ReportMate client that last sent data for this device';
+    END IF;
+END $$;
+
 -- Verify the migration
 SELECT 'Migration completed successfully' as result;
 
