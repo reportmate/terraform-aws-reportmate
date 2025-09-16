@@ -374,7 +374,7 @@ cd scripts
 ./setup-database.sh
 
 # Manual schema setup
-psql $DATABASE_URL -f ../database/schema.sql
+psql $DATABASE_URL -f ../infrastructure/schemas/modular-database-schema.sql
 
 # Check existing tables
 psql $DATABASE_URL -c "\dt"
