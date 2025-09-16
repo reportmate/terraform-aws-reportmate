@@ -1,3 +1,4 @@
+````instructions
 # Reminders for working with ReportMate codebase:
 
 # 🚨🚨🚨 NEVER EVER CREATE FAKE DATA 🚨🚨🚨
@@ -981,3 +982,4 @@ The `/device` page is the main page where all the details show up and the bigges
 Save information as we go in /docs so you can refer to it as we go
 Update your progress in docs\MODULAR_IMPLEMENTATION_STATUS.md
 
+````
