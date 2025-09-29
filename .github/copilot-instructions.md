@@ -37,6 +37,11 @@ and one very important tenant of ReportMate design is the frontend web app and f
 - be selective with files `git add .` 
 - stage only relevant files
 
+**Code Standards:**
+- No emoji in code files anywhere
+- Clean professional code only
+- Comments should be clear and technical
+
 1. **Build & sign the Windows agent** (now supports MSI with scheduled tasks!)
 
 ```powershell
