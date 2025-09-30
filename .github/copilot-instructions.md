@@ -359,6 +359,39 @@ cd infrastructure\scripts
 - ⚠️ Terraform only manages infrastructure resources, NOT application code
 - 🔄 After API fixes, always test with: `curl -s "https://reportmate-api.azurewebsites.net/api/device/0F33V9G25083HJ"`
 
+## 🚨 CRITICAL CONTAINER ARCHITECTURE (September 29, 2025) 🚨
+
+**CORRECT ARCHITECTURE - NEVER VIOLATE AGAIN:**
+
+✅ **ONLY ONE CONTAINER EXISTS:**
+- `reportmate-functions-api` = The ONLY FastAPI container (production API for all platforms)
+- URL: `https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io`
+
+❌ **CONTAINERS THAT MUST NEVER EXIST:**
+- `reportmate-web-app-prod` = ❌ DELETED - Should never be recreated
+- `reportmate-web-app` = ❌ Should never exist
+- `reportmate-container-prod` = ❌ Should never exist
+
+❌ **DEPRECATED APIS THAT MUST BE ELIMINATED:**
+- `reportmate-api.azurewebsites.net` = ❌ OLD deprecated Azure Functions (eliminate from all code)
+
+**NAMING CONVENTION:**
+- API containers are shared across ALL platforms (web, Mac, Windows apps)
+- NEVER name containers with platform-specific names like "web-app"
+- FastAPI container serves ALL client applications
+
+**ENVIRONMENT VARIABLE RULES:**
+- `API_BASE_URL` = Must always point to `reportmate-functions-api` container
+- `NEXT_PUBLIC_API_BASE_URL` = Must always point to `reportmate-functions-api` container
+- ❌ NEVER reference deprecated `reportmate-api.azurewebsites.net` in any environment files
+
+**DEPLOYMENT RULES:**
+- ✅ Deploy FastAPI container: `.\deploy-containers.ps1 -Environment prod -ForceBuild`
+- ❌ NEVER create additional containers without explicit architecture review
+- ✅ Frontend calls FastAPI container directly (no internal API calls)
+
+This architecture was established September 29, 2025 - NEVER CREATE DUPLICATE CONTAINERS AGAIN!
+
 #### 3.1 Common Deployment Issues
 
 **Error: "Unable to find project root. Expecting to find one of host.json"**
@@ -410,32 +443,32 @@ cd infrastructure\scripts
 
 ## 🚨 Current System Status & Troubleshooting
 
-**Azure Functions API Status (September 12, 2025):**
-- ✅ Health endpoint: Working (`curl https://reportmate-api.azurewebsites.net/api/health`)
-- ❌ Device endpoint: 500 errors - pg8000 driver not available (`curl https://reportmate-api.azurewebsites.net/api/device/0F33V9G25083HJ`)
-- ❌ Events endpoint: 500 errors - pg8000 driver not available (`curl https://reportmate-api.azurewebsites.net/api/events`)
-- ❌ Devices endpoint: 500 errors - pg8000 driver not available (`curl https://reportmate-api.azurewebsites.net/api/devices`)
-- ✅ Requirements.txt: Contains `pg8000>=1.31.2`  
-- ❌ Driver Installation: Both remote build and vendored deployment failing to install pg8000
-- ❌ **ROOT CAUSE: Azure Functions Python runtime not processing requirements.txt correctly**
+**FastAPI Container Status (September 29, 2025):**
+- ✅ **Container Running**: FastAPI container successfully deployed and operational
+- ✅ **Health endpoint**: Working (`curl https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/health`)
+- ✅ **Individual device endpoint**: Working with complete data (`/api/device/0F33V9G25083HJ`)
+- ⚠️ **Bulk devices endpoint**: Working but missing inventory data in bulk response (`/api/devices`)
+- ✅ **Database connectivity**: 217 devices, all module tables populated
+- ✅ **Architecture compliance**: Single FastAPI container, no deprecated APIs
 
-**CRITICAL FINDING:**
-- ✅ **Windows Client Installs Module**: Working correctly - generates SUCCESS/WARNING/ERROR events
-- ✅ **Database Storage**: Working (138 devices confirmed via status script)  
-- ✅ **Database Connection**: Available (DATABASE_URL configured)
-- ❌ **API Access**: Blocked by missing Python database driver
+**CRITICAL DEVICE IDENTIFICATION PATTERN (September 29, 2025):**
+- ✅ **Database Schema**: `devices` table has `id` (primary key), `device_id` (UUID), `serial_number` (actual serial)
+- ✅ **Module Tables**: All module tables (`inventory`, `system`, etc.) use `device_id` column containing SERIAL NUMBERS (not UUIDs)
+- ✅ **API Standard**: Both bulk and individual endpoints must use `serial_number` for module queries
+- ❌ **NEVER**: Query module tables with primary key ID or UUID - always use serial number
+- ✅ **Device Links**: All frontend links use `/device/[serialNumber]` format (never UUID)
 
 **Current Working Components:**
-- ✅ Terraform infrastructure
-- ✅ Azure PostgreSQL database  
-- ✅ Function app deployment and routing
-- ✅ Non-database functions (health, debug)
+- ✅ FastAPI container infrastructure
+- ✅ Azure PostgreSQL database with 217 devices
+- ✅ Individual device endpoints with complete module data
+- ✅ Container logs showing successful data processing
 - ✅ Windows client data collection and transmission
-- ✅ SignalR negotiate endpoint
-- ✅ Next.js application deployment
+- ✅ Next.js frontend calling FastAPI directly
 
-**INSTALLS MODULE STATUS:**
-**✅ CONFIRMED WORKING:** The installs module IS correctly reporting success/warning/error events. The issue is purely API access, not data collection or processing.**
+**NEXT STEPS:**
+- 🔧 **Debug bulk endpoint**: Fix LEFT JOIN query to include inventory data for all devices
+- ✅ **Architecture verified**: Single container approach working correctly
 
 #### 4. Source-Control Constraints
 
