@@ -1,25 +1,25 @@
 ````instructions
 # Reminders for working with ReportMate codebase:
 
-# 🚨🚨🚨 NEVER EVER CREATE FAKE DATA 🚨🚨🚨
-# ❌❌❌ NO MOCK DATA ANYWHERE ❌❌❌
-# ⛔⛔⛔ NO FALLBACK DATA GENERATION ⛔⛔⛔
-# 🔥🔥🔥 PRODUCTION SYSTEMS MUST SHOW REAL DATA ONLY 🔥🔥🔥
+# NEVER EVER CREATE FAKE DATA
+# NO MOCK DATA ANYWHERE
+# NO FALLBACK DATA GENERATION 
+# PRODUCTION SYSTEMS MUST SHOW REAL DATA ONLY 
 
 **ABSOLUTELY FORBIDDEN:**
-- ❌ createFallbackOSData() functions
-- ❌ Mock macOS/Windows data generation
-- ❌ Fake device data creation
-- ❌ Test data in production endpoints
-- ❌ Hash-based fake data distribution
-- ❌ "Realistic" fake data patterns
-- ❌ Any data generation that makes it "seem like something is working when it's not"
+- createFallbackOSData() functions
+- Mock macOS/Windows data generation
+- Fake device data creation
+- Test data in production endpoints
+- Hash-based fake data distribution
+- "Realistic" fake data patterns
+- Any data generation that makes it "seem like something is working when it's not"
 
 **IF THERE'S NO REAL DATA:**
-- ✅ Show empty charts/tables
-- ✅ Display "No data available" messages  
-- ✅ Return empty arrays/objects
-- ✅ Let the user know the real state
+- Show empty charts/tables
+- Display "No data available" messages  
+- Return empty arrays/objects
+- Let the user know the real state
 
 **REMEMBER:** Frontend is a READER. Heavy lifting is done on device at collection. If data is missing, fix it at the source (client collection), NOT with fake frontend compensation.
 
@@ -129,27 +129,71 @@ ReportMate's internal `deviceId` is the UUID of the device but ***all*** links a
 
 #### 3. Deployment Shortcuts
 
-**Deploy Azure Functions API (when API code changes):**
+**CRITICAL: Prerequisites for Container Deployments**
+
+1. **Azure CLI Authentication (Required):**
+   ```powershell
+   az login
+   ```
+   Must be logged in to Azure. Deploy scripts will handle ACR authentication automatically.
+
+2. **Always use `-ForceBuild` flag:**
+   - Without `-ForceBuild`, Docker may use cached layers and miss code changes
+   - This flag ensures a clean rebuild from scratch with latest code
+   - Required for both API and frontend container deployments
+
+**Deploy FastAPI Container (when API code changes):**
 
 ```powershell
-cd infrastructure\modules\functions\api
-func azure functionapp publish reportmate-api --build remote
+cd infrastructure
+.\scripts\deploy-api.ps1 -ForceBuild
 ```
 
-**🚨 CRITICAL: Azure Functions Python Deployment Issues 🚨**
+This script handles:
+- Automatic ACR authentication (no manual login needed)
+- Building the FastAPI Docker image (with -ForceBuild for clean rebuild)
+- Pushing to Azure Container Registry
+- Updating the Container App with new image
+- Health checks and verification
 
-**PROBLEM:** ZIP deploys do NOT trigger Python builds, so `requirements.txt` is ignored and imports fail at runtime.
+**Why `-ForceBuild` is required:**
+- Forces Docker `--no-cache` build
+- Ensures latest code changes are included
+- Prevents stale cached layers
+- Eliminates "works locally but not in container" issues
 
-**ROOT CAUSE:** ZIP push deploys assume "ready-to-run" packages. Build automation is OFF by default.
+**Deploy Frontend Container (when frontend code changes):**
 
-**CRITICAL DEPLOYMENT LESSONS LEARNED:**
+```powershell
+cd infrastructure
+.\scripts\deploy-containers.ps1 -Environment prod -ForceBuild
+```
 
-🚨 **AZURE FUNCTIONS API RESTORATION SUCCESS (September 2025)** 🚨
+This script handles:
+- Automatic ACR authentication (no manual login needed)
+- Building the Next.js Docker image
+- Smart tagging with timestamp and git hash
+- Pushing to Azure Container Registry
+- Updating the Container App
+- Health checks and deployment verification
 
-**ROOT CAUSE OF COMPLETE API FAILURE:**
-- Azure Functions remote build was **COMPLETELY IGNORING** requirements.txt
-- pg8000 PostgreSQL driver not being installed despite correct requirements specification
-- ALL API endpoints failing with 500 errors due to missing database connectivity
+**OSQUERY DEPENDENCY MANAGEMENT:**
+- ReportMate Windows client requires osquery for data collection
+- NEVER use Chocolatey (`choco`) for osquery installation - requires pre-installation
+- ALWAYS use Windows Package Manager (`winget`) - built-in to Windows 10 (1809+) and Windows 11
+- Postinstall scripts automatically install osquery via: `winget install osquery.osquery --silent`
+- **IMPORTANT**: winget may not be immediately available after fresh Windows install/OOBE
+  - First user login triggers Microsoft Store registration (asynchronous process)
+  - Postinstall scripts include fallback to register App Installer if needed
+  - Command used: `Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe`
+- Fallback: Manual installation from https://osquery.io/downloads/ if winget unavailable
+
+**DEPRECATED: Azure Functions (DO NOT USE)**
+
+**IMPORTANT:** The old Azure Functions API (`reportmate-api.azurewebsites.net`) is DEPRECATED.
+All API functionality has been migrated to the FastAPI container (`reportmate-functions-api`).
+
+**OLD DEPLOYMENT METHOD (DEPRECATED):**
 
 **SUCCESSFUL SOLUTION - VENDORED DEPLOYMENT:**
 ```powershell
@@ -177,38 +221,42 @@ az functionapp deployment source config-zip --name $APP --resource-group $RG --s
 
 **DEPLOYMENT REQUIREMENTS:**
 1. **Database Driver Requirements**: Azure Functions with Python runtime REQUIRES `pg8000>=1.31.2` ONLY
-   - ❌ NEVER add `psycopg2-binary` - causes deployment failures
-   - ❌ NEVER add `asyncpg` without proper async setup
-   - ✅ Use ONLY `pg8000>=1.31.2` in requirements.txt
-   - ✅ Update database manager to try `pg8000` FIRST before other drivers
+   - NEVER add `psycopg2-binary` - causes deployment failures
+   - NEVER add `asyncpg` without proper async setup
+   - Use ONLY `pg8000>=1.31.2` in requirements.txt
+   - Update database manager to try `pg8000` FIRST before other drivers
 
 2. **NEVER USE REMOTE BUILD FOR CRITICAL DEPLOYMENTS:**
-   - ❌ NEVER use `func azure functionapp publish reportmate-api --build remote` - unreliable
-   - ❌ NEVER use plain `az functionapp deployment source config-zip` without vendored deps
-   - ✅ ALWAYS use vendored `.python_packages` deployment for production
-   - ✅ ALWAYS disable remote build settings before deployment
+   - NEVER use `func azure functionapp publish reportmate-api --build remote` - unreliable
+   - NEVER use plain `az functionapp deployment source config-zip` without vendored deps
+   - ALWAYS use vendored `.python_packages` deployment for production
+   - ALWAYS disable remote build settings before deployment
 
 3. **Azure Functions 500 Error Debugging**:
-   - ✅ Health endpoint working = Python runtime OK
-   - ❌ Device/Events endpoints 500 = Database connection or import issues
-   - ✅ Check Azure portal Function logs for detailed error messages
-   - ✅ Test database connection separately from API endpoints
-   - ✅ Create diagnostic functions (dbtest) to verify module availability
+   - Health endpoint working = Python runtime OK
+   - Device/Events endpoints 500 = Database connection or import issues
+   - Check Azure portal Function logs for detailed error messages
+   - Test database connection separately from API endpoints
+   - Create diagnostic functions (dbtest) to verify module availability
 
 **VERIFIED WORKING ENDPOINTS (September 10, 2025):**
-- ✅ `/api/health` - Returns healthy status
-- ✅ `/api/devices` - Returns 80+ real device records
-- ✅ `/api/events` - Returns real event data
-- ✅ `/api/device/{serial}` - Returns complete device information
-- ✅ `/api/negotiate` - SignalR negotiation endpoint
+- `/api/health` - Returns healthy status
+- `/api/devices` - Returns 80+ real device records
+- `/api/events` - Returns real event data
+- `/api/device/{serial}` - Returns complete device information
+- `/api/negotiate` - SignalR negotiation endpoint
 
 **CRITICAL SUCCESS VERIFICATION:**
 ```powershell
-# These must ALL return real data (not 500 errors):
-curl "https://reportmate-api.azurewebsites.net/api/health"
-curl "https://reportmate-api.azurewebsites.net/api/devices"
-curl "https://reportmate-api.azurewebsites.net/api/events"
-curl "https://reportmate-api.azurewebsites.net/api/device/0F33V9G25083HJ"
+# FastAPI Container Endpoints (CURRENT):
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/health"
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/devices"
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/events"
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/device/0F33V9G25083HJ"
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/stats/installs"
+
+# DEPRECATED (Old Azure Functions - DO NOT USE):
+# curl "https://reportmate-api.azurewebsites.net/api/..."
 ```
 
 **SOLUTION A (Recommended - Deterministic):** Vendor dependencies into `.python_packages` and ZIP deploy
@@ -248,54 +296,33 @@ func azure functionapp publish reportmate-api --python --build remote
 ```
 
 **WHY THIS HAPPENS:**
-- ❌ ZIP push assumes ready-to-run code (no build steps)
-- ❌ `requirements.txt` gets ignored completely
-- ❌ Nothing ends up in `/home/site/wwwroot/.python_packages`
-- ❌ All imports fail: `ModuleNotFoundError`
+- ZIP push assumes ready-to-run code (no build steps)
+- `requirements.txt` gets ignored completely
+- Nothing ends up in `/home/site/wwwroot/.python_packages`
+- All imports fail: `ModuleNotFoundError`
 
 **CRITICAL RULES:**
-- ✅ Use `func azure functionapp publish --build remote` for remote builds
-- ✅ Use vendored `.python_packages` + ZIP for deterministic deploys  
-- ✅ Keep `requirements.txt` minimal (no `azure.functions` - platform provides it)
-- ❌ NEVER use plain `az functionapp deployment source config-zip` without vendored deps
-- ❌ NEVER rely on ZIP deploy to trigger builds (it won't)
+- Use `func azure functionapp publish --build remote` for remote builds
+- Use vendored `.python_packages` + ZIP for deterministic deploys  
+- Keep `requirements.txt` minimal (no `azure.functions` - platform provides it)
+- NEVER use plain `az functionapp deployment source config-zip` without vendored deps
+- NEVER rely on ZIP deploy to trigger builds (it won't)
 
 **Verification Commands:**
 ```powershell
-# Check function status
-az functionapp show --name reportmate-api --resource-group ReportMate --query "state"
+# Check API container status (FastAPI)
+az containerapp show --name reportmate-functions-api --resource-group ReportMate --query "properties.runningStatus"
 
-# ❌ NOTE: az webapp log tail DOES NOT WORK for Function Apps - do not use
-# ❌ NOTE: az functionapp logs tail DOES NOT EXIST - this was incorrect
-# ✅ Use Azure portal Function logs or infrastructure\scripts\status.ps1 instead for debugging
+# View API container logs
+az containerapp logs show --name reportmate-functions-api --resource-group ReportMate --follow
 
-# Test API endpoint
-curl "https://reportmate-api.azurewebsites.net/api/device/0F33V9G25083HJ"
+# Test API endpoints
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/health"
+curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/device/0F33V9G25083HJ"
 
 # Use status script for comprehensive health check
 cd infrastructure\scripts
 .\status.ps1
-```
-
-**Deploy Web Container (when frontend changes):**
-
-```powershell
-cd infrastructure
-.\scripts\deploy-containers.ps1
-```
-
-**Deploy Web Container (without rebuilding - use existing image):**
-
-```powershell
-cd infrastructure
-.\scripts\deploy-containers.ps1 -SkipBuild
-```
-
-**Deploy Web Container (with custom tag):**
-
-```powershell
-cd infrastructure
-.\scripts\deploy-containers.ps1 -Tag "20250901141109-81bb6f2"
 ```
 
 **Infrastructure Changes (Terraform - only for resource changes, NOT code updates):**
@@ -305,39 +332,42 @@ cd infrastructure
 terraform apply -auto-approve
 ```
 
-#### 3.2 Container Deployment for Next.js Development
+#### 3.2 Container Deployment Commands
 
-**Perfect workflow for iterative Next.js development:**
+**Deploy Frontend Container (recommended for production):**
 
 ```powershell
-# Quick deployment with latest code changes (recommended for development)
-cd infrastructure\scripts
-.\deploy-containers.ps1 -ForceBuild
+cd infrastructure
+.\scripts\deploy-containers.ps1 -Environment prod -ForceBuild
+```
 
+**Deploy Frontend Container (other options):**
+
+```powershell
 # Deploy to development environment
-.\deploy-containers.ps1 -Environment dev -ForceBuild
+.\scripts\deploy-containers.ps1 -Environment dev -ForceBuild
 
 # Deploy existing image without rebuilding (faster, for testing deployment process)
-.\deploy-containers.ps1 -SkipBuild -Tag "20250902152337-e8e4c2d"
+.\scripts\deploy-containers.ps1 -SkipBuild -Tag "20250902152337-e8e4c2d"
 
 # Deploy with custom tag
-.\deploy-containers.ps1 -Tag "my-feature-v1"
+.\scripts\deploy-containers.ps1 -Tag "my-feature-v1"
 ```
 
 **What the container deployment script handles automatically:**
-- ✅ Smart tagging: `YYYYMMDDHHMMSS-githash` format
-- ✅ Docker layer caching: Faster rebuilds using latest image as cache
-- ✅ Image pushing: To Azure Container Registry (reportmateacr.azurecr.io)
-- ✅ Container update: Updates running production/dev container app
-- ✅ Health checks: Verifies deployment success
-- ✅ Version tracking: Includes container image tag in settings page
-- ✅ Build arguments: Passes IMAGE_TAG, BUILD_TIME, BUILD_ID to container
+- Smart tagging: `YYYYMMDDHHMMSS-githash` format
+- Docker layer caching: Faster rebuilds using latest image as cache
+- Image pushing: To Azure Container Registry (reportmateacr.azurecr.io)
+- Container update: Updates running production/dev container app
+- Health checks: Verifies deployment success
+- Version tracking: Includes container image tag in settings page
+- Build arguments: Passes IMAGE_TAG, BUILD_TIME, BUILD_ID to container
 
 **Container deployment assumes:**
-- ✅ Terraform infrastructure exists (Container Apps, ACR, etc.)
-- ✅ Validates prerequisites (Docker, Azure CLI, authentication)
-- ✅ Fails gracefully if infrastructure missing
-- ✅ No risk of breaking existing infrastructure
+- Terraform infrastructure exists (Container Apps, ACR, etc.)
+- Validates prerequisites (Docker, Azure CLI, authentication)
+- Fails gracefully if infrastructure missing
+- No risk of breaking existing infrastructure
 
 **Container deployment is self-contained for updates** - perfect for daily development cycle:
 1. Make changes to Next.js app (components, pages, APIs, etc.)
@@ -350,30 +380,28 @@ cd infrastructure\scripts
 - Format: `reportmateacr.azurecr.io/reportmate:20250902152337-e8e4c2d`
 
 **CRITICAL DEPLOYMENT NOTES:**
-- ✅ Use `func azure functionapp publish reportmate-api --build remote` for API code updates (NOT terraform)
-- ✅ Use `.\deploy-containers.ps1 -Environment prod -ForceBuild` for frontend updates  
-- ✅ Use `terraform apply -auto-approve` ONLY for infrastructure resource changes (new resources, networking, etc.)
-- ✅ Azure Functions code is in `infrastructure\modules\functions\api` directory
-- ❌ **NEVER use terraform for code deployments** - it doesn't update the running function code
-- ❌ **NEVER use `func azure functionapp publish` from wrong directory** - must be in `modules\functions\api`
-- ⚠️ Terraform only manages infrastructure resources, NOT application code
-- 🔄 After API fixes, always test with: `curl -s "https://reportmate-api.azurewebsites.net/api/device/0F33V9G25083HJ"`
+- Use `.\scripts\deploy-api.ps1 -ForceBuild` for FastAPI container updates (API code changes)
+- Use `.\scripts\deploy-containers.ps1 -Environment prod -ForceBuild` for frontend updates  
+- Use `terraform apply -auto-approve` ONLY for infrastructure resource changes (new resources, networking, etc.)
+- **NEVER use terraform for code deployments** - it doesn't update the running container code
+- Terraform only manages infrastructure resources, NOT application code
+- After API fixes, always test with: `curl -s "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/device/0F33V9G25083HJ"`
 
-## 🚨 CRITICAL CONTAINER ARCHITECTURE (September 29, 2025) 🚨
+## CRITICAL CONTAINER ARCHITECTURE (September 29, 2025)
 
 **CORRECT ARCHITECTURE - NEVER VIOLATE AGAIN:**
 
-✅ **ONLY ONE CONTAINER EXISTS:**
+**ONLY ONE CONTAINER EXISTS:**
 - `reportmate-functions-api` = The ONLY FastAPI container (production API for all platforms)
 - URL: `https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io`
 
-❌ **CONTAINERS THAT MUST NEVER EXIST:**
-- `reportmate-web-app-prod` = ❌ DELETED - Should never be recreated
-- `reportmate-web-app` = ❌ Should never exist
-- `reportmate-container-prod` = ❌ Should never exist
+**CONTAINERS THAT MUST NEVER EXIST:**
+- `reportmate-web-app-prod` = DELETED - Should never be recreated
+- `reportmate-web-app` = Should never exist
+- `reportmate-container-prod` = Should never exist
 
-❌ **DEPRECATED APIS THAT MUST BE ELIMINATED:**
-- `reportmate-api.azurewebsites.net` = ❌ OLD deprecated Azure Functions (eliminate from all code)
+**DEPRECATED APIS THAT MUST BE ELIMINATED:**
+- `reportmate-api.azurewebsites.net` = OLD deprecated Azure Functions (eliminate from all code)
 
 **NAMING CONVENTION:**
 - API containers are shared across ALL platforms (web, Mac, Windows apps)
@@ -383,92 +411,93 @@ cd infrastructure\scripts
 **ENVIRONMENT VARIABLE RULES:**
 - `API_BASE_URL` = Must always point to `reportmate-functions-api` container
 - `NEXT_PUBLIC_API_BASE_URL` = Must always point to `reportmate-functions-api` container
-- ❌ NEVER reference deprecated `reportmate-api.azurewebsites.net` in any environment files
+- NEVER reference deprecated `reportmate-api.azurewebsites.net` in any environment files
 
 **DEPLOYMENT RULES:**
-- ✅ Deploy FastAPI container: `.\deploy-containers.ps1 -Environment prod -ForceBuild`
-- ❌ NEVER create additional containers without explicit architecture review
-- ✅ Frontend calls FastAPI container directly (no internal API calls)
+- Deploy FastAPI API container: `cd infrastructure; .\scripts\deploy-api.ps1 -ForceBuild`
+- Deploy Frontend container: `cd infrastructure; .\scripts\deploy-containers.ps1 -Environment prod -ForceBuild`
+- NEVER create additional containers without explicit architecture review
+- Frontend calls FastAPI container directly (no internal API calls)
 
 This architecture was established September 29, 2025 - NEVER CREATE DUPLICATE CONTAINERS AGAIN!
 
 #### 3.1 Common Deployment Issues
 
 **Error: "Unable to find project root. Expecting to find one of host.json"**
-- ❌ You're in wrong directory
-- ✅ Must be in `infrastructure\modules\functions\` directory
-- ✅ Verify `host.json` exists: `ls host.json`
+- You're in wrong directory
+- Must be in `infrastructure\modules\functions\` directory
+- Verify `host.json` exists: `ls host.json`
 
 **Error: API changes not reflected after terraform apply**
-- ❌ Terraform doesn't deploy function code
-- ✅ Use `func azure functionapp publish reportmate-api --python` instead
+- Terraform doesn't deploy container code
+- Use `.\scripts\deploy-api.ps1 -ForceBuild` instead
 
 **Error: Dashboard shows no data after API updates**
-- ✅ Check API response structure: `curl "https://reportmate-api.azurewebsites.net/api/device/0F33V9G25083HJ"`
-- ✅ Verify clientVersion is dynamic (not hardcoded)
-- ✅ Ensure API returns clean device structure matching frontend expectations
+- Check API response structure: `curl "https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/device/0F33V9G25083HJ"`
+- Verify clientVersion is dynamic (not hardcoded)
+- Ensure API returns clean device structure matching frontend expectations
 
 **Memory Leak & Performance Issues (FIXED):**
-- ✅ **Browser Memory Leak Fix**: Implemented memory management utilities in dashboard hooks
-- ✅ **SignalR Connection Improvements**: Added proper cleanup and memory management
-- ✅ **Polling vs SignalR**: Polling is WORKING as primary mechanism, SignalR infrastructure deployed but client-side connection issues
-- 🔧 **Environment Variables**: Use `NEXT_PUBLIC_` prefix for client-side access in Next.js
-- � **SignalR Status**: See `docs/SIGNALR_STATUS.md` for complete implementation status
+- **Browser Memory Leak Fix**: Implemented memory management utilities in dashboard hooks
+- **SignalR Connection Improvements**: Added proper cleanup and memory management
+- **Polling vs SignalR**: Polling is WORKING as primary mechanism, SignalR infrastructure deployed but client-side connection issues
+- **Environment Variables**: Use `NEXT_PUBLIC_` prefix for client-side access in Next.js
+- **SignalR Status**: See `docs/SIGNALR_STATUS.md` for complete implementation status
 
 **SignalR Infrastructure Status (INFRASTRUCTURE WORKING, CLIENT BROKEN):**
-- ✅ Azure WebPubSub service: `reportmate-signalr` deployed and functional
-- ✅ Negotiate endpoint: `https://reportmate-api.azurewebsites.net/api/negotiate` working
-- ✅ JWT token generation: Proper authentication with Azure WebPubSub
-- ✅ Environment variables: `EVENTS_CONNECTION` configured in Function App
-- ❌ Client-side connection: useEffect not executing due to compilation issues
-- ✅ **WORKING FALLBACK**: 30-second polling provides real-time updates
+- Azure WebPubSub service: `reportmate-signalr` deployed and functional
+- Negotiate endpoint: `https://reportmate-api.azurewebsites.net/api/negotiate` working
+- JWT token generation: Proper authentication with Azure WebPubSub
+- Environment variables: `EVENTS_CONNECTION` configured in Function App
+- Client-side connection: useEffect not executing due to compilation issues
+- **WORKING FALLBACK**: 30-second polling provides real-time updates
 
 **CRITICAL API RESTORATION SUCCESS (September 2025):**
-- ✅ **FIXED**: All API endpoints restored and functional with real data
-- ✅ **SOLUTION**: Vendored deployment with .python_packages approach
-- ✅ **VERIFIED**: Dashboard now displays real device data (80+ devices)
-- ⚠️ **NEVER BREAK AGAIN**: Use only vendored deployment method documented above
+- **FIXED**: All API endpoints restored and functional with real data
+- **SOLUTION**: Vendored deployment with .python_packages approach
+- **VERIFIED**: Dashboard now displays real device data (80+ devices)
+- **NEVER BREAK AGAIN**: Use only vendored deployment method documented above
 
 **CRITICAL AUTHENTICATION ISSUE:**
-- ❌ **Frontend using REPORTMATE_PASSPHRASE for internal communication** - This is WRONG!
-- ✅ **REPORTMATE_PASSPHRASE is for Windows clients only** - NOT for web app
-- ✅ **Web app should use Azure Managed Identity** - For Azure-to-Azure communication
+- **Frontend using REPORTMATE_PASSPHRASE for internal communication** - This is WRONG!
+- **REPORTMATE_PASSPHRASE is for Windows clients only** - NOT for web app
+- **Web app should use Azure Managed Identity** - For Azure-to-Azure communication
 - 🔧 **Fix**: Remove `X-API-PASSPHRASE` headers from all frontend API calls
 - 🔧 **Fix**: Configure Azure Functions to allow internal Azure traffic without passphrase
 
 **Error: "Invalid revalidate value" in Next.js**
-- ❌ Cannot use `export const revalidate` in client components ("use client")
-- ✅ Only use `revalidate` in server components (pages without "use client")
-- ✅ Use `export const dynamic = 'force-dynamic'` for dynamic client components
+- Cannot use `export const revalidate` in client components ("use client")
+- Only use `revalidate` in server components (pages without "use client")
+- Use `export const dynamic = 'force-dynamic'` for dynamic client components
 
-## 🚨 Current System Status & Troubleshooting
+## Current System Status & Troubleshooting
 
 **FastAPI Container Status (September 29, 2025):**
-- ✅ **Container Running**: FastAPI container successfully deployed and operational
-- ✅ **Health endpoint**: Working (`curl https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/health`)
-- ✅ **Individual device endpoint**: Working with complete data (`/api/device/0F33V9G25083HJ`)
-- ⚠️ **Bulk devices endpoint**: Working but missing inventory data in bulk response (`/api/devices`)
-- ✅ **Database connectivity**: 217 devices, all module tables populated
-- ✅ **Architecture compliance**: Single FastAPI container, no deprecated APIs
+- **Container Running**: FastAPI container successfully deployed and operational
+- **Health endpoint**: Working (`curl https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io/api/health`)
+- **Individual device endpoint**: Working with complete data (`/api/device/0F33V9G25083HJ`)
+- **Bulk devices endpoint**: Working but missing inventory data in bulk response (`/api/devices`)
+- **Database connectivity**: 217 devices, all module tables populated
+- **Architecture compliance**: Single FastAPI container, no deprecated APIs
 
 **CRITICAL DEVICE IDENTIFICATION PATTERN (September 29, 2025):**
-- ✅ **Database Schema**: `devices` table has `id` (primary key), `device_id` (UUID), `serial_number` (actual serial)
-- ✅ **Module Tables**: All module tables (`inventory`, `system`, etc.) use `device_id` column containing SERIAL NUMBERS (not UUIDs)
-- ✅ **API Standard**: Both bulk and individual endpoints must use `serial_number` for module queries
-- ❌ **NEVER**: Query module tables with primary key ID or UUID - always use serial number
-- ✅ **Device Links**: All frontend links use `/device/[serialNumber]` format (never UUID)
+- **Database Schema**: `devices` table has `id` (primary key), `device_id` (UUID), `serial_number` (actual serial)
+- **Module Tables**: All module tables (`inventory`, `system`, etc.) use `device_id` column containing SERIAL NUMBERS (not UUIDs)
+- **API Standard**: Both bulk and individual endpoints must use `serial_number` for module queries
+- **NEVER**: Query module tables with primary key ID or UUID - always use serial number
+- **Device Links**: All frontend links use `/device/[serialNumber]` format (never UUID)
 
 **Current Working Components:**
-- ✅ FastAPI container infrastructure
-- ✅ Azure PostgreSQL database with 217 devices
-- ✅ Individual device endpoints with complete module data
-- ✅ Container logs showing successful data processing
-- ✅ Windows client data collection and transmission
-- ✅ Next.js frontend calling FastAPI directly
+- FastAPI container infrastructure
+- Azure PostgreSQL database with 217 devices
+- Individual device endpoints with complete module data
+- Container logs showing successful data processing
+- Windows client data collection and transmission
+- Next.js frontend calling FastAPI directly
 
 **NEXT STEPS:**
 - 🔧 **Debug bulk endpoint**: Fix LEFT JOIN query to include inventory data for all devices
-- ✅ **Architecture verified**: Single container approach working correctly
+- **Architecture verified**: Single container approach working correctly
 
 #### 4. Source-Control Constraints
 
@@ -612,13 +641,13 @@ The installs module should be collecting Cimian data and showing packages with p
 
 ## ReportMate Modular Architecture - Complete Data Flow
 
-✅ Collection: osquery → module.json files
-✅ Transmission: event.json → Azure Functions  
-✅ Ingestion: Functions → individual DB tables
-✅ Storage: PostgreSQL → JSONB per module
-✅ API: Functions → exact data return
-✅ Frontend: extractXxx() → modular processing
-✅ Display: Components → module-specific UI
+Collection: osquery → module.json files
+Transmission: event.json → Azure Functions  
+Ingestion: Functions → individual DB tables
+Storage: PostgreSQL → JSONB per module
+API: Functions → exact data return
+Frontend: extractXxx() → modular processing
+Display: Components → module-specific UI
 
 ReportMate is built with a strict modularization model where each module follows the exact same pattern from collection to display:
 
@@ -666,34 +695,34 @@ ReportMate is built with a strict modularization model where each module follows
 - Tables: `apps\www\src\components\tables\[Module]Table.tsx`
 - Widgets: `apps\www\src\components\widgets\[Module].tsx`
 
-### ⚠️ **CRITICAL: No Monolithic Code Allowed**
+### **CRITICAL: No Monolithic Code Allowed**
 
 **ELIMINATED MONOLITHIC FILES:**
-- ❌ `component-data.ts` - DELETED ✅
-- ❌ `component-data-fixed.ts` - DELETED ✅  
-- ❌ `device-mapper.ts` - DELETED ✅
-- ❌ `modules-index.ts` - DELETED ✅ (obsolete file with broken references)
-- ❌ `temp-network-function.ts` - DELETED ✅
+- `component-data.ts` - DELETED
+- `component-data-fixed.ts` - DELETED  
+- `device-mapper.ts` - DELETED
+- `modules-index.ts` - DELETED (obsolete file with broken references)
+- `temp-network-function.ts` - DELETED
 
 **ONLY MODULAR FILES ALLOWED:**
-- ✅ `modules/[module].ts` - Individual module files only
-- ✅ `modules/index.ts` - Centralized exports only
-- ✅ `device-mapper-modular.ts` - Clean modular mapper only
-- ✅ `index.ts` - Main entry point only
+- `modules/[module].ts` - Individual module files only
+- `modules/index.ts` - Centralized exports only
+- `device-mapper-modular.ts` - Clean modular mapper only
+- `index.ts` - Main entry point only
 
 **MONOLITHIC PATTERNS TO AVOID:**
-- ❌ `processXxxData()` functions - Use `extractXxx()` instead
-- ❌ Large files with multiple module logic - Split into individual modules
-- ❌ Cross-module dependencies - Each module must be self-contained
-- ❌ Hardcoded fallback data - Frontend reads real data only
+- `processXxxData()` functions - Use `extractXxx()` instead
+- Large files with multiple module logic - Split into individual modules
+- Cross-module dependencies - Each module must be self-contained
+- Hardcoded fallback data - Frontend reads real data only
 
 ### Module Architecture Rules:
 
-✅ **Frontend = Reader Only**: Heavy processing happens on device at collection
-✅ **One File Per Module**: Each module is completely self-contained
-✅ **No Cross-Dependencies**: Modules don't reference each other
-✅ **Consistent Naming**: extractXxx(), XxxInfo interface, XxxTab component
-✅ **No Monolithic Files**: Eliminated all "monster" files (component-data.ts, device-mapper.ts)
+**Frontend = Reader Only**: Heavy processing happens on device at collection
+**One File Per Module**: Each module is completely self-contained
+**No Cross-Dependencies**: Modules don't reference each other
+**Consistent Naming**: extractXxx(), XxxInfo interface, XxxTab component
+**No Monolithic Files**: Eliminated all "monster" files (component-data.ts, device-mapper.ts)
 
 ### Adding a New Module:
 
@@ -861,7 +890,7 @@ The one change we should do in how `event.json` is structure is have this in a m
 
 What we have to tackle next to fix is the transmission, ingestion, storage of this perfect data we have locally right now so we can get the pages routers rendering it them as is -- the structure should be ready to go for them?
 
-🚀 Now let's focus on the Web App!
+Now let's focus on the Web App!
 The infrastructure is rock-solid. Let's enhance the web application! Here are some key areas we can improve:
 
 1. Dashboard Enhancements
@@ -893,48 +922,48 @@ Reporting capabilities
 
 
 Complete Modular Architecture Implemented:
-✅ 11 modular tables - One per JSON module from Windows client
-✅ All tables have data - 11 records total (1 per module)
-✅ No complex sub-tables - Simple, clean structure
-✅ JSONB storage - Flexible data storage per module
+11 modular tables - One per JSON module from Windows client
+All tables have data - 11 records total (1 per module)
+No complex sub-tables - Simple, clean structure
+JSONB storage - Flexible data storage per module
 
 3. Data Integrity Enforced:
-✅ No duplicate serial numbers
-✅ No duplicate device IDs
-✅ Serial number + Device ID uniqueness enforced
+No duplicate serial numbers
+No duplicate device IDs
+Serial number + Device ID uniqueness enforced
 
 4. Event Type Validation Working:
-✅ Only info events (8 events) - within allowed types
-✅ No invalid event types - Strict validation working
+Only info events (8 events) - within allowed types
+No invalid event types - Strict validation working
 
 5. Clean Database Architecture
-📊 CURRENT STATE:
-📱 Total devices: 1
-📅 Total events: 8  
-📦 Total module records: 11
-🏗️ Module tables: 11
+CURRENT STATE:
+Total devices: 1
+Total events: 8
+Total module records: 11
+Module tables: 11
 
-✅ applications: 1 records
-✅ displays: 1 records  
-✅ hardware: 1 records
-✅ installs: 1 records
-✅ inventory: 1 records
-✅ management: 1 records
-✅ network: 1 records
-✅ printers: 1 records
-✅ profiles: 1 records
-✅ security: 1 records
-✅ system: 1 records
+applications: 1 records
+displays: 1 records  
+hardware: 1 records
+installs: 1 records
+inventory: 1 records
+management: 1 records
+network: 1 records
+printers: 1 records
+profiles: 1 records
+security: 1 records
+system: 1 records
 
-🏗️ Architecture Summary:
+### Architecture Summary:
 You now have exactly what you requested:
 
-✅ One Azure PostgreSQL database
-✅ One table per module (matching the JSON files from runner.exe)
-✅ Serial number uniqueness enforced
-✅ Device ID (UUID) constraints working
-✅ Event type restrictions (success, warning, error, info, system only)
-✅ Clean data transmission from runner.exe → Azure Functions → PostgreSQL
+One Azure PostgreSQL database
+One table per module (matching the JSON files from runner.exe)
+Serial number uniqueness enforced
+Device ID (UUID) constraints working
+Event type restrictions (success, warning, error, info, system only)
+Clean data transmission from runner.exe → Azure Functions → PostgreSQL
 
 ---
 
