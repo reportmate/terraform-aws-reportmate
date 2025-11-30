@@ -107,9 +107,36 @@ temp/
 functions/local.settings.json
 functions/bin/
 functions/obj/
+functions/csx/
+functions/edge/
+functions/Publish/
+functions/packages/
+functions/TestResults/
+functions/tools/
+functions/App_Data/
+functions/secrets/
+functions/data/
+functions/.secrets
+functions/appsettings.json
+functions/__blobstorage__/
+functions/__queuestorage__/
+functions/__azurite_db*__.json
+
+# Visual Studio / .NET artifacts
+*.user
+*.suo
+*.cscfg
+*.Cache
+project.lock.json
+*$py.class
 
 # Root-level Python venv
 .venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Visual Studio metadata
 .vs/
