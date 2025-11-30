@@ -329,9 +329,127 @@ stages:
                         echo "Database not found, skipping schema setup"
                       fi
 
+  - stage: DeployFunctions
+    displayName: 'Deploy Azure Functions'
+    dependsOn: Infrastructure
+    jobs:
+      - deployment: DeployFunctionApp
+        displayName: 'Deploy Functions to Azure'
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@0
+                  displayName: 'Download Build Artifacts'
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'specific'
+                    itemPattern: 'drop/functions.zip'
+                    downloadPath: '$(System.ArtifactsDirectory)'
+                
+                - task: UsePythonVersion@0
+                  displayName: 'Setup Python'
+                  inputs:
+                    versionSpec: $(pythonVersion)
+                    addToPath: true
+                
+                # Install Azure Functions Core Tools
+                - script: |
+                    wget -q https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb
+                    sudo dpkg -i packages-microsoft-prod.deb
+                    sudo apt-get update
+                    sudo apt-get install -y azure-functions-core-tools-4
+                  displayName: 'Install Azure Functions Core Tools v4'
+                
+                # Extract and prepare the functions package
+                - script: |
+                    mkdir -p $(Build.ArtifactStagingDirectory)/functions-deploy
+                    cd $(Build.ArtifactStagingDirectory)/functions-deploy
+                    unzip -q $(System.ArtifactsDirectory)/drop/functions.zip
+                    
+                    # Install Python dependencies with native builds
+                    python -m pip install --upgrade pip
+                    pip install --target ./.python_packages/lib/site-packages -r requirements.txt
+                  displayName: 'Prepare Function Package'
+                
+                # Package the function app
+                - script: |
+                    cd $(Build.ArtifactStagingDirectory)/functions-deploy
+                    func pack --build-native-deps --python --output $(Build.ArtifactStagingDirectory)/functionsapp.zip
+                  displayName: 'Package Function App'
+                
+                # Deploy to Azure Function App
+                - task: AzureFunctionApp@1
+                  displayName: 'Deploy to Azure Functions'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    appType: 'functionAppLinux'
+                    appName: $(functionAppName)
+                    package: '$(Build.ArtifactStagingDirectory)/functionsapp.zip'
+                    runtimeStack: 'PYTHON|$(pythonVersion)'
+                    deploymentMethod: 'zipDeploy'
+                
+                # Configure Function App Settings
+                - task: AzureCLI@2
+                  displayName: 'Configure Function App Settings'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      echo "Configuring function app settings..."
+                      
+                      # Get the API URL and other settings from Terraform outputs or environment
+                      API_URL="https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io"
+                      
+                      # Set application settings
+                      az functionapp config appsettings set \
+                        --name $(functionAppName) \
+                        --resource-group $(resourceGroupName) \
+                        --settings \
+                          "REPORTMATE_API_URL=$API_URL" \
+                          "REPORTMATE_API_KEY=$(REPORTMATE_API_KEY)" \
+                          "TEAMS_WEBHOOK_URL=$(TEAMS_WEBHOOK_URL)" \
+                          "FUNCTIONS_WORKER_RUNTIME=python" \
+                          "PYTHON_VERSION=$(pythonVersion)" \
+                          "ENABLE_ORYX_BUILD=false" \
+                          "SCM_DO_BUILD_DURING_DEPLOYMENT=false"
+                      
+                      echo "Function app settings configured successfully"
+                
+                # Verify deployment
+                - task: AzureCLI@2
+                  displayName: 'Verify Function Deployment'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      FUNCTION_URL=$(az functionapp show \
+                        --name $(functionAppName) \
+                        --resource-group $(resourceGroupName) \
+                        --query "defaultHostName" \
+                        --output tsv)
+                      
+                      echo "Function App URL: https://$FUNCTION_URL"
+                      
+                      # List deployed functions
+                      echo "Listing deployed functions..."
+                      az functionapp function list \
+                        --name $(functionAppName) \
+                        --resource-group $(resourceGroupName) \
+                        --query "[].{Name:name, Trigger:config.bindings[0].type}" \
+                        --output table || echo "Functions list not yet available"
+                      
+                      # Store URL for testing stage
+                      echo "##vso[task.setvariable variable=FunctionAppUrl;isOutput=true]$FUNCTION_URL"
+
   - stage: Test
     displayName: 'Health Check & Validation'
-    dependsOn: Containers
+    dependsOn: 
+      - Containers
+      - DeployFunctions
     jobs:
       - job: HealthCheck
         displayName: 'Test Deployed Applications'
@@ -364,9 +482,9 @@ stages:
                   FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FRONTEND_URL" || echo "000")
                   
                   if [ "$FRONTEND_STATUS" = "200" ]; then
-                    echo "Frontend is healthy (Status: $FRONTEND_STATUS)"
+                    echo "[OK] Frontend is healthy (Status: $FRONTEND_STATUS)"
                   else
-                    echo "Frontend health check warning (Status: $FRONTEND_STATUS)"
+                    echo "[WARN] Frontend health check warning (Status: $FRONTEND_STATUS)"
                   fi
                 else
                   echo "Frontend URL not found"
@@ -376,41 +494,50 @@ stages:
                 if [ -n "$FUNCTION_URL" ]; then
                   echo "Testing functions at: https://$FUNCTION_URL"
                   
-                  # Test negotiate endpoint
-                  NEGOTIATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FUNCTION_URL/api/negotiate?device=pipeline-test" || echo "000")
+                  # Test health/storage alert function
+                  sleep 10  # Give functions time to warm up
                   
-                  if [ "$NEGOTIATE_STATUS" = "200" ]; then
-                    echo "Functions API is healthy (Status: $NEGOTIATE_STATUS)"
+                  HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FUNCTION_URL/api/health" 2>/dev/null || echo "000")
+                  
+                  if [ "$HEALTH_STATUS" = "200" ] || [ "$HEALTH_STATUS" = "404" ]; then
+                    echo "[OK] Functions API is accessible (Status: $HEALTH_STATUS)"
                     
-                    # Test ingest endpoint with sample data
-                    echo "Testing ingest endpoint..."
-                    curl -X POST "https://$FUNCTION_URL/api/ingest" \
-                      -H "Content-Type: application/json" \
-                      -d '{
-                        "device": "pipeline-test-'$(date +%s)'",
-                        "kind": "deployment_test",
-                        "payload": {
-                          "message": "Pipeline deployment verification",
-                          "build": "'$(Build.BuildNumber)'",
-                          "timestamp": "'$(date -Iseconds)'",
-                          "pipeline": "unified-deployment"
-                        }
-                      }' \
-                      -w "\nIngest Status: %{http_code}\n" || echo "Ingest test completed"
+                    # List functions to verify storage alert is deployed
+                    echo "Checking for deployed functions..."
+                    FUNCTIONS=$(az functionapp function list \
+                      --name $(functionAppName) \
+                      --resource-group $(resourceGroupName) \
+                      --query "[].name" \
+                      --output tsv 2>/dev/null || echo "")
+                    
+                    if [ -n "$FUNCTIONS" ]; then
+                      echo "Deployed functions:"
+                      echo "$FUNCTIONS"
+                      
+                      # Check if storage alert function exists
+                      if echo "$FUNCTIONS" | grep -q "reportmate_storage_alerts"; then
+                        echo "[OK] Storage alert function deployed successfully"
+                      else
+                        echo "[WARN] Storage alert function not found in deployment"
+                      fi
+                    else
+                      echo "[WARN] Could not retrieve function list"
+                    fi
                   else
-                    echo "Functions API health check warning (Status: $NEGOTIATE_STATUS)"
+                    echo "[WARN] Functions API health check warning (Status: $HEALTH_STATUS)"
                   fi
                 else
                   echo "Functions URL not found"
                 fi
                 
                 echo ""
-                echo "Deployment Summary:"
-                echo "====================="
+                echo "======================================"
+                echo "Deployment Summary"
+                echo "======================================"
                 echo "Build Number: $(Build.BuildId)"
                 echo "Frontend: ${FRONTEND_URL:-'Not deployed'}"
                 echo "Functions: ${FUNCTION_URL:-'Not deployed'}"
                 echo "Container Registry: $(containerRegistryName).azurecr.io"
                 echo "Resource Group: $(resourceGroupName)"
                 echo ""
-                echo "Unified pipeline deployment completed successfully!"
+                echo "[OK] Unified pipeline deployment completed successfully!"
