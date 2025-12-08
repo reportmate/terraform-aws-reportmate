@@ -1,543 +1,764 @@
-# Azure DevOps CI/CD Pipeline for ReportMate
-# Unified pipeline that handles infrastructure, containers, and applications
+# =============================================================================
+# ReportMate CI/CD Pipeline
+# =============================================================================
+# 
+# Architecture: Terraform is the single source of truth
+#   1. Pipeline builds Docker images from GitHub repos
+#   2. Pushes to Azure Container Registry (reportmateacr.azurecr.io)
+#   3. Terraform deploys container apps with image tags passed as -var
+#
+# Source Repos:
+#   - API Container: github.com/reportmate/terraform-azurerm-reportmate
+#     Dockerfile: infrastructure/modules/api/Dockerfile
+#   - Frontend Container: github.com/reportmate/reportmate-app-web
+#     Dockerfile: Dockerfile (root)
+#
+# TRIGGERS:
+#   - Push to main on reportmate/terraform-azurerm-reportmate (infra repo)
+#   - Push to main on reportmate/reportmate-app-web (webapp repo)
+#   - Manual run via Azure DevOps
+# =============================================================================
 
-trigger:
-  branches:
-    include:
-      - main
-      - develop
-  paths:
-    include:
-      - apps/www/**
-      - functions/**
-      - infrastructure/**
-      - pipelines/**
+# NOTE: This pipeline is triggered by EXTERNAL GitHub repos, not this internal repo.
+# The trigger/pr sections below are disabled because we use resource triggers instead.
+trigger: none
+pr: none
 
+# =============================================================================
+# RESOURCES - External GitHub Repos with Triggers
+# =============================================================================
+resources:
+  repositories:
+    # Infrastructure repo (contains API code and Terraform)
+    - repository: infrastructure
+      type: github
+      name: reportmate/terraform-azurerm-reportmate
+      endpoint: 'GitHub-ReportMate'  # UPDATE: Your GitHub service connection
+      ref: main
+      trigger:
+        branches:
+          include:
+            - main
+        paths:
+          include:
+            - infrastructure/**
+            - modules/**
+    
+    # Web App source (frontend Next.js app)
+    - repository: webapp
+      type: github
+      name: reportmate/reportmate-app-web
+      endpoint: 'GitHub-ReportMate'  # UPDATE: Your GitHub service connection
+      ref: main
+      trigger:
+        branches:
+          include:
+            - main
+        paths:
+          include:
+            - '**'  # Any change triggers frontend build
+
+# =============================================================================
+# PIPELINE PARAMETERS
+# =============================================================================
+parameters:
+  - name: environment
+    displayName: Target Environment
+    type: string
+    default: prod
+    values:
+      - prod
+      - dev
+
+  - name: forceBuild
+    displayName: Force Rebuild (no Docker cache)
+    type: boolean
+    default: false
+
+  - name: deployFrontend
+    displayName: Build & Deploy Frontend Container
+    type: boolean
+    default: true
+
+  - name: deployApi
+    displayName: Build & Deploy API Container
+    type: boolean
+    default: true
+
+  - name: skipTerraform
+    displayName: Skip Terraform (build & push only)
+    type: boolean
+    default: false
+
+  - name: purgeOnly
+    displayName: Purge CDN Only (no build/deploy)
+    type: boolean
+    default: false
+
+# =============================================================================
+# VARIABLES
+# =============================================================================
 variables:
-  vmImageName: 'ubuntu-latest'
-  azureSubscription: 'your-service-connection-name' # Update this
+  # Azure Configuration
+  azureSubscription: 'ReportMate-ServiceConnection'  # UPDATE: Your service connection
+  resourceGroup: 'ReportMate'
+  containerRegistry: 'reportmateacr'
+  registryUrl: 'reportmateacr.azurecr.io'
   
-  # Resource Configuration
-  resourceGroupName: 'ReportMate'
-  containerRegistryName: 'reportmateacr'
-  functionAppName: 'reportmate-api'
-  frontendContainerAppName: 'reportmate-frontend'
+  # Container Apps (must match Terraform resource names)
+  frontendContainerApp: 'reportmate-web-app-prod'
+  apiContainerApp: 'reportmate-functions-api'
   
-  # Terraform Backend Configuration
-  terraformBackendResourceGroup: 'tfstate-rg'
-  terraformBackendStorageAccount: 'tfstatestorage'
-  terraformBackendContainerName: 'tfstate'
+  # Image Names (in ACR)
+  frontendImage: 'reportmate'
+  apiImage: 'reportmate-api'
+  
+  # Domain Configuration
+  customDomain: 'reportmate.ecuad.ca'
+  frontDoorProfile: 'reportmate-frontdoor'
+  frontDoorEndpoint: 'reportmate-endpoint'
+  
+  # API URL (for frontend build args)
+  apiBaseUrl: 'https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io'
+  
+  # Terraform Backend (Azure Blob Storage)
+  terraformBackendRG: 'ecuadgitopsterraform'
+  terraformBackendSA: 'ecuadgitopsterraform'
+  terraformBackendContainer: 'terraform-state'
   terraformBackendKey: 'reportmate.tfstate'
   
   # Build Configuration
-  nodeVersion: '18.x'
-  pythonVersion: '3.12'
-  
-  # Container Images
-  frontendImageName: 'reportmate'
-  functionsImageName: 'reportmate-functions'
+  vmImage: 'ubuntu-latest'
+  terraformVersion: '1.6.0'
 
 pool:
-  vmImage: $(vmImageName)
+  vmImage: $(vmImage)
 
+# =============================================================================
+# STAGES
+# =============================================================================
 stages:
-  - stage: Build
-    displayName: 'Build Applications'
+  # ===========================================================================
+  # STAGE: PURGE ONLY (fast path)
+  # ===========================================================================
+  - stage: PurgeOnlyStage
+    displayName: 'Purge CDN Only'
+    condition: eq('${{ parameters.purgeOnly }}', true)
+    
     jobs:
-      - job: BuildApps
-        displayName: 'Build Frontend and Functions'
+      - job: PurgeCDN
+        displayName: 'Purge Azure Front Door'
         steps:
-          # Setup Tools
-          - task: NodeTool@0
-            displayName: 'Setup Node.js'
+          - task: AzureCLI@2
+            displayName: 'Purge Front Door Cache'
             inputs:
-              versionSpec: $(nodeVersion)
-          
-          - task: UsePythonVersion@0
-            displayName: 'Setup Python'
-            inputs:
-              versionSpec: $(pythonVersion)
-              addToPath: true
-          
-          - script: npm install -g pnpm
-            displayName: 'Install pnpm'
-          
-          # Build Next.js Frontend
-          - script: |
-              cd apps/www
-              pnpm install --frozen-lockfile
-              pnpm run build
-            displayName: 'Build Next.js Frontend'
-          
-          # Install Function Dependencies
-          - script: |
-              cd functions
-              pip install -r requirements.txt
-            displayName: 'Install Function Dependencies'
-          
-          # Copy Infrastructure Files
-          - task: CopyFiles@2
-            displayName: 'Copy Infrastructure Files'
-            inputs:
-              SourceFolder: '$(Build.SourcesDirectory)'
-              Contents: |
-                infrastructure/**
-                scripts/**
-                azure.yaml
-                docker-compose.yml
-              TargetFolder: '$(Build.ArtifactStagingDirectory)/infra'
-          
-          # Archive Functions for Traditional Deployment (Backup)
-          - task: ArchiveFiles@2
-            displayName: 'Archive Functions Package'
-            inputs:
-              rootFolderOrFile: 'functions'
-              includeRootFolder: false
-              archiveType: 'zip'
-              archiveFile: '$(Build.ArtifactStagingDirectory)/functions.zip'
-          
-          - task: PublishBuildArtifacts@1
-            displayName: 'Publish Build Artifacts'
-            inputs:
-              pathToPublish: '$(Build.ArtifactStagingDirectory)'
-              artifactName: 'drop'
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "🗑️ Purging Azure Front Door cache (async)..."
+                az afd endpoint purge \
+                  --resource-group $(resourceGroup) \
+                  --profile-name $(frontDoorProfile) \
+                  --endpoint-name $(frontDoorEndpoint) \
+                  --content-paths "/*" \
+                  --domains $(customDomain) \
+                  --no-wait || true
+                
+                echo "✅ Front Door cache purge triggered (async) for $(customDomain)"
 
-  - stage: Infrastructure
-    displayName: 'Deploy Infrastructure'
-    dependsOn: Build
-    jobs:
-      - deployment: DeployTerraform
-        displayName: 'Deploy Terraform Infrastructure'
-        environment: 'Production'
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: DownloadBuildArtifacts@0
-                  displayName: 'Download Infrastructure Files'
-                  inputs:
-                    buildType: 'current'
-                    downloadType: 'single'
-                    artifactName: 'drop'
-                    downloadPath: '$(System.ArtifactsDirectory)'
-                
-                - script: |
-                    # Install Terraform
-                    wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-                    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-                    sudo apt update && sudo apt install terraform
-                  displayName: 'Install Terraform'
-                
-                - task: AzureCLI@2
-                  displayName: 'Deploy Infrastructure with Terraform'
-                  inputs:
-                    azureSubscription: $(azureSubscription)
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      cd $(System.ArtifactsDirectory)/drop/infra/infrastructure
-                      
-                      # Initialize Terraform
-                      terraform init \
-                        -backend-config="resource_group_name=$(terraformBackendResourceGroup)" \
-                        -backend-config="storage_account_name=$(terraformBackendStorageAccount)" \
-                        -backend-config="container_name=$(terraformBackendContainerName)" \
-                        -backend-config="key=$(terraformBackendKey)"
-                      
-                      # Validate and plan
-                      terraform validate
-                      terraform plan -var="db_password=$(DB_PASSWORD)" -out=tfplan
-                      
-                      # Apply infrastructure changes
-                      terraform apply -auto-approve tfplan
-                      
-                      # Extract outputs for later stages
-                      terraform output -json > $(Build.ArtifactStagingDirectory)/terraform-outputs.json
-                      
-                      echo "=== Infrastructure Deployment Complete ==="
-                      echo "Resource Group: $(resourceGroupName)"
-                      echo "Container Registry: $(containerRegistryName).azurecr.io"
-                
-                - task: PublishBuildArtifacts@1
-                  displayName: 'Publish Terraform Outputs'
-                  inputs:
-                    pathToPublish: '$(Build.ArtifactStagingDirectory)/terraform-outputs.json'
-                    artifactName: 'terraform-outputs'
-
-  - stage: Containers
-    displayName: 'Build & Deploy Containers'
-    dependsOn: Infrastructure
+  # ===========================================================================
+  # STAGE: BUILD CONTAINERS
+  # Replicates deploy-api.ps1 and deploy-app.ps1 build logic
+  # ===========================================================================
+  - stage: Build
+    displayName: 'Build Container Images'
+    condition: |
+      and(
+        succeeded(),
+        ne('${{ parameters.purgeOnly }}', true),
+        ne(variables['Build.Reason'], 'PullRequest')
+      )
+    
     jobs:
       - job: BuildContainers
-        displayName: 'Build Container Images'
+        displayName: 'Build and Push to ACR'
+        
         steps:
+          # Checkout infrastructure repo (contains API code and Terraform)
+          - checkout: infrastructure
+            displayName: 'Checkout Infrastructure Repo'
+            path: infrastructure
+            fetchDepth: 0
+
+          # Checkout web app repo (frontend code)
+          - checkout: webapp
+            displayName: 'Checkout Web App Repo'
+            path: webapp
+            fetchDepth: 0
+
+          # Generate build tags (matches deploy-*.ps1 format)
+          - bash: |
+              set -e
+              
+              # Timestamp in YYYYMMDDHHMMSS format (matches PowerShell scripts)
+              TIMESTAMP=$(date +%Y%m%d%H%M%S)
+              BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
+              
+              # Get git hashes from each repo
+              INFRA_HASH=$(cd $(Pipeline.Workspace)/infrastructure && git rev-parse --short HEAD)
+              WEBAPP_HASH=$(cd $(Pipeline.Workspace)/webapp && git rev-parse --short HEAD)
+              
+              # Frontend tag: YYYYMMDDHHMMSS-<webapp-hash> (matches deploy-app.ps1)
+              FRONTEND_TAG="${TIMESTAMP}-${WEBAPP_HASH}"
+              
+              # API tag: YYYYMMDDHHMMSS-<infra-hash> (matches deploy-api.ps1 format)
+              API_TAG="${TIMESTAMP}-${INFRA_HASH}"
+              
+              # Export as pipeline variables
+              echo "##vso[task.setvariable variable=frontendTag;isOutput=true]${FRONTEND_TAG}"
+              echo "##vso[task.setvariable variable=apiTag;isOutput=true]${API_TAG}"
+              echo "##vso[task.setvariable variable=buildTime;isOutput=true]${BUILD_TIME}"
+              echo "##vso[task.setvariable variable=infraHash;isOutput=true]${INFRA_HASH}"
+              echo "##vso[task.setvariable variable=webappHash;isOutput=true]${WEBAPP_HASH}"
+              echo "##vso[task.setvariable variable=timestamp;isOutput=true]${TIMESTAMP}"
+              
+              echo "=============================================="
+              echo "BUILD TAGS GENERATED"
+              echo "=============================================="
+              echo "Timestamp: ${TIMESTAMP}"
+              echo "Build Time: ${BUILD_TIME}"
+              echo "Frontend Tag: ${FRONTEND_TAG} (webapp hash: ${WEBAPP_HASH})"
+              echo "API Tag: ${API_TAG} (infra hash: ${INFRA_HASH})"
+              echo "=============================================="
+            displayName: 'Generate Build Tags'
+            name: tags
+
           # Login to Azure Container Registry
           - task: AzureCLI@2
-            displayName: 'Login to Container Registry'
+            displayName: 'Login to ACR'
             inputs:
               azureSubscription: $(azureSubscription)
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
+              scriptType: bash
+              scriptLocation: inlineScript
               inlineScript: |
-                az acr login --name $(containerRegistryName)
-          
-          # Build and Push Frontend Container
-          - task: Docker@2
+                echo "🔐 Authenticating to Azure Container Registry..."
+                az acr login --name $(containerRegistry)
+                echo "✅ ACR authentication successful"
+
+          # =================================================================
+          # BUILD FRONTEND (replicates deploy-app.ps1)
+          # =================================================================
+          - bash: |
+              set -e
+              cd $(Pipeline.Workspace)/webapp
+              
+              FULL_IMAGE="$(registryUrl)/$(frontendImage):$(tags.frontendTag)"
+              LATEST_IMAGE="$(registryUrl)/$(frontendImage):latest"
+              
+              echo "=============================================="
+              echo "BUILDING FRONTEND CONTAINER"
+              echo "=============================================="
+              echo "Image: ${FULL_IMAGE}"
+              echo "Dockerfile: Dockerfile"
+              echo "Context: $(Pipeline.Workspace)/webapp"
+              echo "Force Build: ${{ parameters.forceBuild }}"
+              echo "=============================================="
+              
+              # Build args match deploy-app.ps1 exactly
+              BUILD_ARGS=(
+                "--platform" "linux/amd64"
+                "--build-arg" "IMAGE_TAG=$(tags.frontendTag)"
+                "--build-arg" "BUILD_TIME=$(tags.buildTime)"
+                "--build-arg" "BUILD_ID=$(tags.webappHash)"
+                "--build-arg" "NEXT_PUBLIC_ENABLE_SIGNALR=true"
+                "--build-arg" "NEXT_PUBLIC_API_BASE_URL=$(apiBaseUrl)"
+                "--build-arg" "API_BASE_URL=$(apiBaseUrl)"
+              )
+              
+              # Force build = no cache (matches -ForceBuild in PowerShell)
+              if [ "${{ parameters.forceBuild }}" = "true" ]; then
+                BUILD_ARGS+=("--no-cache" "--pull")
+                echo "⚠️ Force build enabled - no Docker cache, pulling fresh base image"
+              fi
+              
+              BUILD_ARGS+=("-t" "${FULL_IMAGE}" "-t" "${LATEST_IMAGE}" "-f" "Dockerfile" ".")
+              
+              echo "🔨 Building frontend image..."
+              docker build "${BUILD_ARGS[@]}"
+              
+              echo "📤 Pushing frontend image..."
+              docker push "${FULL_IMAGE}"
+              docker push "${LATEST_IMAGE}"
+              
+              echo "✅ Frontend container built and pushed successfully"
             displayName: 'Build Frontend Container'
-            inputs:
-              command: 'build'
-              Dockerfile: 'apps/www/Dockerfile'
-              buildContext: 'apps/www'
-              repository: '$(containerRegistryName).azurecr.io/$(frontendImageName)'
-              arguments: '--build-arg DOCKER_BUILD=true'
-              tags: |
-                latest
-                $(Build.BuildNumber)
-          
-          - task: Docker@2
-            displayName: 'Push Frontend Container'
-            inputs:
-              command: 'push'
-              repository: '$(containerRegistryName).azurecr.io/$(frontendImageName)'
-              tags: |
-                latest
-                $(Build.BuildNumber)
-          
-          # Build and Push Functions Container
-          - task: Docker@2
-            displayName: 'Build Functions Container'
-            inputs:
-              command: 'build'
-              Dockerfile: 'functions/Dockerfile'
-              buildContext: 'functions'
-              repository: '$(containerRegistryName).azurecr.io/$(functionsImageName)'
-              tags: |
-                latest
-                $(Build.BuildNumber)
-          
-          - task: Docker@2
-            displayName: 'Push Functions Container'
-            inputs:
-              command: 'push'
-              repository: '$(containerRegistryName).azurecr.io/$(functionsImageName)'
-              tags: |
-                latest
-                $(Build.BuildNumber)
+            condition: eq('${{ parameters.deployFrontend }}', true)
 
-      - deployment: DeployContainers
-        displayName: 'Deploy Container Apps'
-        dependsOn: BuildContainers
-        environment: 'Production'
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: DownloadBuildArtifacts@0
-                  displayName: 'Download Infrastructure Files'
-                  inputs:
-                    buildType: 'current'
-                    downloadType: 'specific'
-                    itemPattern: |
-                      drop/infra/infrastructure/**
-                      drop/infra/scripts/**
-                      terraform-outputs/**
-                    downloadPath: '$(System.ArtifactsDirectory)'
-                
-                - task: AzureCLI@2
-                  displayName: 'Update Container Apps'
-                  inputs:
-                    azureSubscription: $(azureSubscription)
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      cd $(System.ArtifactsDirectory)/drop/infra/infrastructure
-                      
-                      # Initialize Terraform (reuse existing state)
-                      terraform init \
-                        -backend-config="resource_group_name=$(terraformBackendResourceGroup)" \
-                        -backend-config="storage_account_name=$(terraformBackendStorageAccount)" \
-                        -backend-config="container_name=$(terraformBackendContainerName)" \
-                        -backend-config="key=$(terraformBackendKey)"
-                      
-                      # Update container apps with new image tags
-                      terraform apply -auto-approve \
-                        -var="db_password=$(DB_PASSWORD)"
-                      
-                      echo "=== Container Apps Updated ==="
-                      
-                      # Get deployment URLs
-                      FRONTEND_URL=$(terraform output -raw frontend_url 2>/dev/null || echo "N/A")
-                      FUNCTION_URL=$(terraform output -raw function_app_url 2>/dev/null || echo "N/A")
-                      PUBSUB_URL=$(terraform output -raw web_pubsub_endpoint 2>/dev/null || echo "N/A")
-                      
-                      echo "Frontend: $FRONTEND_URL"
-                      echo "Functions: $FUNCTION_URL"
-                      echo "WebPubSub: wss://$PUBSUB_URL/client/hubs/events"
-                      
-                      # Store URLs for testing stage
-                      echo "##vso[task.setvariable variable=FrontendUrl;isOutput=true]$FRONTEND_URL"
-                      echo "##vso[task.setvariable variable=FunctionUrl;isOutput=true]$FUNCTION_URL"
-                
-                - task: AzureCLI@2
-                  displayName: 'Setup Database Schema'
-                  inputs:
-                    azureSubscription: $(azureSubscription)
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      # Install PostgreSQL client
-                      sudo apt-get update && sudo apt-get install -y postgresql-client
-                      
-                      # Get database connection info
-                      DB_HOST=$(az postgres flexible-server show \
-                        --name reportmate-database \
-                        --resource-group $(resourceGroupName) \
-                        --query "fullyQualifiedDomainName" \
-                        --output tsv 2>/dev/null || echo "")
-                      
-                      if [ -n "$DB_HOST" ]; then
-                        DB_URL="postgresql://reportmate:$(DB_PASSWORD)@$DB_HOST:5432/reportmate?sslmode=require"
-                        
-                        # Run database initialization
-                        psql "$DB_URL" << 'EOF'
-                          CREATE TABLE IF NOT EXISTS events (
-                              id VARCHAR(255) PRIMARY KEY,
-                              device VARCHAR(255) NOT NULL,
-                              kind VARCHAR(100) NOT NULL,
-                              ts TIMESTAMP WITH TIME ZONE NOT NULL,
-                              payload JSONB,
-                              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                          );
-                          
-                          CREATE TABLE IF NOT EXISTS cimian_runs (
-                              id VARCHAR(255) PRIMARY KEY,
-                              device VARCHAR(255) NOT NULL,
-                              ts TIMESTAMP WITH TIME ZONE NOT NULL,
-                              exit_code INTEGER,
-                              duration INTEGER,
-                              details TEXT,
-                              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                          );
-                          
-                          CREATE INDEX IF NOT EXISTS idx_events_device_ts ON events(device, ts DESC);
-                          CREATE INDEX IF NOT EXISTS idx_events_kind_ts ON events(kind, ts DESC);
-                          CREATE INDEX IF NOT EXISTS idx_cimian_runs_device_ts ON cimian_runs(device, ts DESC);
-                        EOF
-                        
-                        echo "Database schema updated successfully"
-                      else
-                        echo "Database not found, skipping schema setup"
-                      fi
+          # =================================================================
+          # BUILD API (replicates deploy-api.ps1)
+          # =================================================================
+          - bash: |
+              set -e
+              cd $(Pipeline.Workspace)/infrastructure/infrastructure/modules/api
+              
+              FULL_IMAGE="$(registryUrl)/$(apiImage):$(tags.apiTag)"
+              LATEST_IMAGE="$(registryUrl)/$(apiImage):latest"
+              
+              echo "=============================================="
+              echo "BUILDING API CONTAINER"
+              echo "=============================================="
+              echo "Image: ${FULL_IMAGE}"
+              echo "Dockerfile: Dockerfile"
+              echo "Context: $(Pipeline.Workspace)/infrastructure/infrastructure/modules/api"
+              echo "Force Build: ${{ parameters.forceBuild }}"
+              echo "=============================================="
+              
+              BUILD_ARGS=(
+                "--platform" "linux/amd64"
+              )
+              
+              # Force build = no cache
+              if [ "${{ parameters.forceBuild }}" = "true" ]; then
+                BUILD_ARGS+=("--no-cache" "--pull")
+                echo "⚠️ Force build enabled - no Docker cache"
+              fi
+              
+              BUILD_ARGS+=("-t" "${FULL_IMAGE}" "-t" "${LATEST_IMAGE}" "-f" "Dockerfile" ".")
+              
+              echo "🔨 Building API image..."
+              docker build "${BUILD_ARGS[@]}"
+              
+              echo "📤 Pushing API image..."
+              docker push "${FULL_IMAGE}"
+              docker push "${LATEST_IMAGE}"
+              
+              echo "✅ API container built and pushed successfully"
+            displayName: 'Build API Container'
+            condition: eq('${{ parameters.deployApi }}', true)
 
-  - stage: DeployFunctions
-    displayName: 'Deploy Azure Functions'
-    dependsOn: Infrastructure
+          # Save build metadata for downstream stages
+          - bash: |
+              mkdir -p $(Build.ArtifactStagingDirectory)
+              cat > $(Build.ArtifactStagingDirectory)/build-metadata.json << EOF
+              {
+                "frontendTag": "$(tags.frontendTag)",
+                "apiTag": "$(tags.apiTag)",
+                "buildTime": "$(tags.buildTime)",
+                "timestamp": "$(tags.timestamp)",
+                "infraHash": "$(tags.infraHash)",
+                "webappHash": "$(tags.webappHash)",
+                "buildNumber": "$(Build.BuildNumber)",
+                "frontendImage": "$(registryUrl)/$(frontendImage):$(tags.frontendTag)",
+                "apiImage": "$(registryUrl)/$(apiImage):$(tags.apiTag)"
+              }
+              EOF
+              
+              echo "Build metadata saved:"
+              cat $(Build.ArtifactStagingDirectory)/build-metadata.json
+            displayName: 'Save Build Metadata'
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Build Metadata'
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/build-metadata.json
+              artifact: build-metadata
+              publishLocation: pipeline
+
+  # ===========================================================================
+  # STAGE: TERRAFORM PLAN
+  # ===========================================================================
+  - stage: Plan
+    displayName: 'Terraform Plan'
+    dependsOn: Build
+    condition: |
+      and(
+        not(failed()),
+        ne('${{ parameters.purgeOnly }}', true),
+        eq('${{ parameters.skipTerraform }}', false)
+      )
+    
     jobs:
-      - deployment: DeployFunctionApp
-        displayName: 'Deploy Functions to Azure'
-        environment: 'Production'
+      - job: TerraformPlan
+        displayName: 'Plan Infrastructure Changes'
+        
+        steps:
+          - checkout: infrastructure
+            displayName: 'Checkout Infrastructure'
+            path: infrastructure
+
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
+
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Build Metadata'
+            inputs:
+              artifact: build-metadata
+              path: $(Pipeline.Workspace)/metadata
+
+          - bash: |
+              FRONTEND_TAG=$(jq -r '.frontendTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+              API_TAG=$(jq -r '.apiTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+              
+              echo "##vso[task.setvariable variable=frontendTag]${FRONTEND_TAG}"
+              echo "##vso[task.setvariable variable=apiTag]${API_TAG}"
+              
+              echo "Image tags loaded from build:"
+              echo "  Frontend: $(registryUrl)/$(frontendImage):${FRONTEND_TAG}"
+              echo "  API: $(registryUrl)/$(apiImage):${API_TAG}"
+            displayName: 'Load Image Tags'
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Init'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              workingDirectory: $(Pipeline.Workspace)/infrastructure/infrastructure
+              inlineScript: |
+                terraform init \
+                  -backend-config="resource_group_name=$(terraformBackendRG)" \
+                  -backend-config="storage_account_name=$(terraformBackendSA)" \
+                  -backend-config="container_name=$(terraformBackendContainer)" \
+                  -backend-config="key=$(terraformBackendKey)"
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Plan'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              workingDirectory: $(Pipeline.Workspace)/infrastructure/infrastructure
+              inlineScript: |
+                echo "Planning with image tags:"
+                echo "  frontend_image_tag = $(frontendTag)"
+                echo "  api_image_tag = $(apiTag)"
+                
+                terraform plan \
+                  -var-file="terraform.tfvars" \
+                  -var="frontend_image_tag=$(frontendTag)" \
+                  -var="api_image_tag=$(apiTag)" \
+                  -out=$(Build.ArtifactStagingDirectory)/tfplan
+                
+                echo ""
+                echo "=============================================="
+                echo "TERRAFORM PLAN COMPLETE"
+                echo "=============================================="
+                echo "Frontend: $(registryUrl)/$(frontendImage):$(frontendTag)"
+                echo "API: $(registryUrl)/$(apiImage):$(apiTag)"
+                echo "=============================================="
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Terraform Plan'
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/tfplan
+              artifact: terraform-plan
+              publishLocation: pipeline
+
+  # ===========================================================================
+  # STAGE: TERRAFORM APPLY
+  # ===========================================================================
+  - stage: Apply
+    displayName: 'Terraform Apply'
+    dependsOn: [Build, Plan]
+    condition: |
+      and(
+        not(failed()),
+        ne('${{ parameters.purgeOnly }}', true),
+        ne(variables['Build.Reason'], 'PullRequest'),
+        eq('${{ parameters.skipTerraform }}', false)
+      )
+    
+    jobs:
+      - deployment: TerraformApply
+        displayName: 'Apply Infrastructure'
+        environment: 'ReportMate-Production'  # Requires manual approval
         strategy:
           runOnce:
             deploy:
               steps:
-                - task: DownloadBuildArtifacts@0
-                  displayName: 'Download Build Artifacts'
+                - checkout: infrastructure
+                  displayName: 'Checkout Infrastructure'
+                  path: infrastructure
+
+                - task: TerraformInstaller@1
+                  displayName: 'Install Terraform'
                   inputs:
-                    buildType: 'current'
-                    downloadType: 'specific'
-                    itemPattern: 'drop/functions.zip'
-                    downloadPath: '$(System.ArtifactsDirectory)'
-                
-                - task: UsePythonVersion@0
-                  displayName: 'Setup Python'
+                    terraformVersion: $(terraformVersion)
+
+                - task: DownloadPipelineArtifact@2
+                  displayName: 'Download Build Metadata'
                   inputs:
-                    versionSpec: $(pythonVersion)
-                    addToPath: true
-                
-                # Install Azure Functions Core Tools
-                - script: |
-                    wget -q https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb
-                    sudo dpkg -i packages-microsoft-prod.deb
-                    sudo apt-get update
-                    sudo apt-get install -y azure-functions-core-tools-4
-                  displayName: 'Install Azure Functions Core Tools v4'
-                
-                # Extract and prepare the functions package
-                - script: |
-                    mkdir -p $(Build.ArtifactStagingDirectory)/functions-deploy
-                    cd $(Build.ArtifactStagingDirectory)/functions-deploy
-                    unzip -q $(System.ArtifactsDirectory)/drop/functions.zip
+                    artifact: build-metadata
+                    path: $(Pipeline.Workspace)/metadata
+
+                - task: DownloadPipelineArtifact@2
+                  displayName: 'Download Terraform Plan'
+                  inputs:
+                    artifact: terraform-plan
+                    path: $(Pipeline.Workspace)/tfplan
+
+                - bash: |
+                    FRONTEND_TAG=$(jq -r '.frontendTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+                    API_TAG=$(jq -r '.apiTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+                    BUILD_TIME=$(jq -r '.buildTime' $(Pipeline.Workspace)/metadata/build-metadata.json)
                     
-                    # Install Python dependencies with native builds
-                    python -m pip install --upgrade pip
-                    pip install --target ./.python_packages/lib/site-packages -r requirements.txt
-                  displayName: 'Prepare Function Package'
-                
-                # Package the function app
-                - script: |
-                    cd $(Build.ArtifactStagingDirectory)/functions-deploy
-                    func pack --build-native-deps --python --output $(Build.ArtifactStagingDirectory)/functionsapp.zip
-                  displayName: 'Package Function App'
-                
-                # Deploy to Azure Function App
-                - task: AzureFunctionApp@1
-                  displayName: 'Deploy to Azure Functions'
-                  inputs:
-                    azureSubscription: $(azureSubscription)
-                    appType: 'functionAppLinux'
-                    appName: $(functionAppName)
-                    package: '$(Build.ArtifactStagingDirectory)/functionsapp.zip'
-                    runtimeStack: 'PYTHON|$(pythonVersion)'
-                    deploymentMethod: 'zipDeploy'
-                
-                # Configure Function App Settings
-                - task: AzureCLI@2
-                  displayName: 'Configure Function App Settings'
-                  inputs:
-                    azureSubscription: $(azureSubscription)
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      echo "Configuring function app settings..."
-                      
-                      # Get the API URL and other settings from Terraform outputs or environment
-                      API_URL="https://reportmate-functions-api.blackdune-79551938.canadacentral.azurecontainerapps.io"
-                      
-                      # Set application settings
-                      az functionapp config appsettings set \
-                        --name $(functionAppName) \
-                        --resource-group $(resourceGroupName) \
-                        --settings \
-                          "REPORTMATE_API_URL=$API_URL" \
-                          "REPORTMATE_API_KEY=$(REPORTMATE_API_KEY)" \
-                          "TEAMS_WEBHOOK_URL=$(TEAMS_WEBHOOK_URL)" \
-                          "FUNCTIONS_WORKER_RUNTIME=python" \
-                          "PYTHON_VERSION=$(pythonVersion)" \
-                          "ENABLE_ORYX_BUILD=false" \
-                          "SCM_DO_BUILD_DURING_DEPLOYMENT=false"
-                      
-                      echo "Function app settings configured successfully"
-                
-                # Verify deployment
-                - task: AzureCLI@2
-                  displayName: 'Verify Function Deployment'
-                  inputs:
-                    azureSubscription: $(azureSubscription)
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      FUNCTION_URL=$(az functionapp show \
-                        --name $(functionAppName) \
-                        --resource-group $(resourceGroupName) \
-                        --query "defaultHostName" \
-                        --output tsv)
-                      
-                      echo "Function App URL: https://$FUNCTION_URL"
-                      
-                      # List deployed functions
-                      echo "Listing deployed functions..."
-                      az functionapp function list \
-                        --name $(functionAppName) \
-                        --resource-group $(resourceGroupName) \
-                        --query "[].{Name:name, Trigger:config.bindings[0].type}" \
-                        --output table || echo "Functions list not yet available"
-                      
-                      # Store URL for testing stage
-                      echo "##vso[task.setvariable variable=FunctionAppUrl;isOutput=true]$FUNCTION_URL"
+                    echo "##vso[task.setvariable variable=frontendTag]${FRONTEND_TAG}"
+                    echo "##vso[task.setvariable variable=apiTag]${API_TAG}"
+                    echo "##vso[task.setvariable variable=buildTime]${BUILD_TIME}"
+                    
+                    echo "=============================================="
+                    echo "DEPLOYING"
+                    echo "=============================================="
+                    echo "Frontend: $(registryUrl)/$(frontendImage):${FRONTEND_TAG}"
+                    echo "API: $(registryUrl)/$(apiImage):${API_TAG}"
+                    echo "=============================================="
+                  displayName: 'Load Build Metadata'
 
-  - stage: Test
-    displayName: 'Health Check & Validation'
-    dependsOn: 
-      - Containers
-      - DeployFunctions
+                - task: AzureCLI@2
+                  displayName: 'Terraform Init'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    workingDirectory: $(Pipeline.Workspace)/infrastructure/infrastructure
+                    inlineScript: |
+                      terraform init \
+                        -backend-config="resource_group_name=$(terraformBackendRG)" \
+                        -backend-config="storage_account_name=$(terraformBackendSA)" \
+                        -backend-config="container_name=$(terraformBackendContainer)" \
+                        -backend-config="key=$(terraformBackendKey)"
+
+                - task: AzureCLI@2
+                  displayName: 'Terraform Apply'
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    workingDirectory: $(Pipeline.Workspace)/infrastructure/infrastructure
+                    inlineScript: |
+                      terraform apply -auto-approve $(Pipeline.Workspace)/tfplan/tfplan
+                      
+                      echo ""
+                      echo "=============================================="
+                      echo "TERRAFORM APPLY COMPLETE"
+                      echo "=============================================="
+
+  # ===========================================================================
+  # STAGE: UPDATE CONTAINER ENV VARS
+  # Replicates the env var updates from deploy-app.ps1
+  # ===========================================================================
+  - stage: UpdateEnvVars
+    displayName: 'Update Container Env Vars'
+    dependsOn: Apply
+    condition: |
+      and(
+        succeeded(),
+        ne('${{ parameters.purgeOnly }}', true),
+        eq('${{ parameters.deployFrontend }}', true)
+      )
+    
     jobs:
-      - job: HealthCheck
-        displayName: 'Test Deployed Applications'
+      - job: UpdateEnv
+        displayName: 'Sync Environment Variables'
+        
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Build Metadata'
+            inputs:
+              artifact: build-metadata
+              path: $(Pipeline.Workspace)/metadata
+
+          - task: AzureCLI@2
+            displayName: 'Update Frontend Container Env Vars'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                # Load build metadata
+                FRONTEND_TAG=$(jq -r '.frontendTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+                BUILD_TIME=$(jq -r '.buildTime' $(Pipeline.Workspace)/metadata/build-metadata.json)
+                WEBAPP_HASH=$(jq -r '.webappHash' $(Pipeline.Workspace)/metadata/build-metadata.json)
+                
+                echo "=============================================="
+                echo "UPDATING CONTAINER ENVIRONMENT VARIABLES"
+                echo "=============================================="
+                echo "Container: $(frontendContainerApp)"
+                echo "Tag: ${FRONTEND_TAG}"
+                echo "Build Time: ${BUILD_TIME}"
+                echo "Build ID: ${WEBAPP_HASH}"
+                echo "=============================================="
+                
+                # Update env vars (matches deploy-app.ps1 exactly)
+                az containerapp update \
+                  --name $(frontendContainerApp) \
+                  --resource-group $(resourceGroup) \
+                  --set-env-vars \
+                    "CONTAINER_IMAGE_TAG=${FRONTEND_TAG}" \
+                    "BUILD_TIME=${BUILD_TIME}" \
+                    "BUILD_ID=${WEBAPP_HASH}" \
+                    "NEXT_PUBLIC_VERSION=${FRONTEND_TAG}" \
+                    "NEXT_PUBLIC_BUILD_ID=${WEBAPP_HASH}" \
+                    "NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME}" \
+                    "API_BASE_URL=$(apiBaseUrl)" \
+                    "NEXT_PUBLIC_API_BASE_URL=$(apiBaseUrl)"
+                
+                echo "✅ Environment variables updated"
+
+          # Wait for revision to warm up (matches deploy-app.ps1)
+          - bash: |
+              echo "Waiting 30 seconds for new revision to warm up..."
+              sleep 30
+              echo "✅ Warmup complete"
+            displayName: 'Wait for Container Warmup'
+
+  # ===========================================================================
+  # STAGE: PURGE CDN
+  # ===========================================================================
+  - stage: PurgeCDN
+    displayName: 'Purge Front Door Cache'
+    dependsOn: UpdateEnvVars
+    condition: |
+      and(
+        succeeded(),
+        ne('${{ parameters.purgeOnly }}', true),
+        eq('${{ parameters.deployFrontend }}', true)
+      )
+    
+    jobs:
+      - job: PurgeCache
+        displayName: 'Purge Azure Front Door'
+        
         steps:
           - task: AzureCLI@2
-            displayName: 'Health Check All Services'
+            displayName: 'Purge Front Door Cache'
             inputs:
               azureSubscription: $(azureSubscription)
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
+              scriptType: bash
+              scriptLocation: inlineScript
               inlineScript: |
-                echo "Starting health checks..."
+                echo "🗑️ Purging Azure Front Door cache..."
                 
-                # Get application URLs
-                FRONTEND_URL=$(az containerapp show \
-                  --name $(frontendContainerAppName) \
-                  --resource-group $(resourceGroupName) \
-                  --query "properties.configuration.ingress.fqdn" \
-                  --output tsv 2>/dev/null || echo "")
+                az afd endpoint purge \
+                  --resource-group $(resourceGroup) \
+                  --profile-name $(frontDoorProfile) \
+                  --endpoint-name $(frontDoorEndpoint) \
+                  --content-paths "/*" \
+                  --domains $(customDomain) \
+                  --no-wait || true
                 
-                FUNCTION_URL=$(az functionapp show \
-                  --name $(functionAppName) \
-                  --resource-group $(resourceGroupName) \
-                  --query "defaultHostName" \
-                  --output tsv 2>/dev/null || echo "")
+                echo "✅ Front Door cache purge triggered (async) for $(customDomain)"
+
+  # ===========================================================================
+  # STAGE: HEALTH CHECK
+  # ===========================================================================
+  - stage: HealthCheck
+    displayName: 'Health Check'
+    dependsOn: [UpdateEnvVars, PurgeCDN]
+    condition: |
+      and(
+        succeeded(),
+        ne('${{ parameters.purgeOnly }}', true)
+      )
+    
+    jobs:
+      - job: ValidateDeployment
+        displayName: 'Validate Deployment'
+        
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Build Metadata'
+            inputs:
+              artifact: build-metadata
+              path: $(Pipeline.Workspace)/metadata
+
+          - bash: |
+              FRONTEND_TAG=$(jq -r '.frontendTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+              API_TAG=$(jq -r '.apiTag' $(Pipeline.Workspace)/metadata/build-metadata.json)
+              echo "##vso[task.setvariable variable=frontendTag]${FRONTEND_TAG}"
+              echo "##vso[task.setvariable variable=apiTag]${API_TAG}"
+            displayName: 'Load Build Metadata'
+
+          # Health check frontend (matches deploy-app.ps1)
+          - task: AzureCLI@2
+            displayName: 'Check Frontend Health'
+            condition: eq('${{ parameters.deployFrontend }}', true)
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "🔍 Testing frontend at https://$(customDomain)..."
                 
-                # Test Frontend
-                if [ -n "$FRONTEND_URL" ]; then
-                  echo "Testing frontend at: https://$FRONTEND_URL"
-                  FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FRONTEND_URL" || echo "000")
-                  
-                  if [ "$FRONTEND_STATUS" = "200" ]; then
-                    echo "[OK] Frontend is healthy (Status: $FRONTEND_STATUS)"
-                  else
-                    echo "[WARN] Frontend health check warning (Status: $FRONTEND_STATUS)"
+                for i in {1..5}; do
+                  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$(customDomain)" || echo "000")
+                  if [ "$STATUS" = "200" ]; then
+                    echo "✅ Frontend is healthy (HTTP $STATUS)"
+                    break
                   fi
-                else
-                  echo "Frontend URL not found"
-                fi
+                  echo "Attempt $i: HTTP $STATUS, retrying in 10s..."
+                  sleep 10
+                done
                 
-                # Test Functions API
-                if [ -n "$FUNCTION_URL" ]; then
-                  echo "Testing functions at: https://$FUNCTION_URL"
-                  
-                  # Test health/storage alert function
-                  sleep 10  # Give functions time to warm up
-                  
-                  HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FUNCTION_URL/api/health" 2>/dev/null || echo "000")
-                  
-                  if [ "$HEALTH_STATUS" = "200" ] || [ "$HEALTH_STATUS" = "404" ]; then
-                    echo "[OK] Functions API is accessible (Status: $HEALTH_STATUS)"
-                    
-                    # List functions to verify storage alert is deployed
-                    echo "Checking for deployed functions..."
-                    FUNCTIONS=$(az functionapp function list \
-                      --name $(functionAppName) \
-                      --resource-group $(resourceGroupName) \
-                      --query "[].name" \
-                      --output tsv 2>/dev/null || echo "")
-                    
-                    if [ -n "$FUNCTIONS" ]; then
-                      echo "Deployed functions:"
-                      echo "$FUNCTIONS"
-                      
-                      # Check if storage alert function exists
-                      if echo "$FUNCTIONS" | grep -q "reportmate_storage_alerts"; then
-                        echo "[OK] Storage alert function deployed successfully"
-                      else
-                        echo "[WARN] Storage alert function not found in deployment"
-                      fi
-                    else
-                      echo "[WARN] Could not retrieve function list"
-                    fi
-                  else
-                    echo "[WARN] Functions API health check warning (Status: $HEALTH_STATUS)"
+                if [ "$STATUS" != "200" ]; then
+                  echo "##vso[task.logissue type=warning]Frontend health check returned HTTP $STATUS"
+                fi
+
+          # Health check API (matches deploy-api.ps1)
+          - task: AzureCLI@2
+            displayName: 'Check API Health'
+            condition: eq('${{ parameters.deployApi }}', true)
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "🔍 Testing API at $(apiBaseUrl)/api/health..."
+                
+                for i in {1..5}; do
+                  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$(apiBaseUrl)/api/health" || echo "000")
+                  if [ "$STATUS" = "200" ]; then
+                    echo "✅ API is healthy (HTTP $STATUS)"
+                    break
                   fi
-                else
-                  echo "Functions URL not found"
-                fi
+                  echo "Attempt $i: HTTP $STATUS, retrying in 10s..."
+                  sleep 10
+                done
                 
-                echo ""
-                echo "======================================"
-                echo "Deployment Summary"
-                echo "======================================"
-                echo "Build Number: $(Build.BuildId)"
-                echo "Frontend: ${FRONTEND_URL:-'Not deployed'}"
-                echo "Functions: ${FUNCTION_URL:-'Not deployed'}"
-                echo "Container Registry: $(containerRegistryName).azurecr.io"
-                echo "Resource Group: $(resourceGroupName)"
-                echo ""
-                echo "[OK] Unified pipeline deployment completed successfully!"
+                if [ "$STATUS" != "200" ]; then
+                  echo "##vso[task.logissue type=warning]API health check returned HTTP $STATUS"
+                fi
+
+          # Deployment summary (matches deploy-app.ps1 output)
+          - bash: |
+              echo ""
+              echo "════════════════════════════════════════════════════════════"
+              echo "                    DEPLOYMENT SUMMARY"
+              echo "════════════════════════════════════════════════════════════"
+              echo ""
+              echo "Build Number: $(Build.BuildNumber)"
+              echo ""
+              echo "Container Images:"
+              echo "  Frontend: $(registryUrl)/$(frontendImage):$(frontendTag)"
+              echo "  API:      $(registryUrl)/$(apiImage):$(apiTag)"
+              echo ""
+              echo "Source Repositories:"
+              echo "  Web App:        github.com/reportmate/reportmate-app-web"
+              echo "  Infrastructure: github.com/reportmate/terraform-azurerm-reportmate"
+              echo ""
+              echo "URLs:"
+              echo "  Frontend: https://$(customDomain)"
+              echo "  API:      $(apiBaseUrl)"
+              echo ""
+              echo "Next Steps:"
+              echo "  • Open https://$(customDomain) in an incognito window to verify"
+              echo "  • Visit /settings → check CONTAINER_IMAGE_TAG matches $(frontendTag)"
+              echo "  • If browser shows cached content, hard refresh (Ctrl+F5)"
+              echo ""
+              echo "════════════════════════════════════════════════════════════"
+              echo "                         DONE"
+              echo "════════════════════════════════════════════════════════════"
+            displayName: 'Deployment Summary'

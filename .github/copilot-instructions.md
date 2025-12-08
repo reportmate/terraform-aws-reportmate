@@ -41,6 +41,7 @@ and one very important tenant of ReportMate design is the frontend web app and f
 - No emoji in code files anywhere
 - Clean professional code only
 - Comments should be clear and technical
+- Do not use 'CRITICAL:' prefixes in code comments
 
 1. **Build & sign the Windows agent** (now supports MSI with scheduled tasks!)
 
@@ -129,7 +130,7 @@ ReportMate's internal `deviceId` is the UUID of the device but ***all*** links a
 
 #### 3. Deployment Shortcuts
 
-**CRITICAL: Prerequisites for Container Deployments**
+**Prerequisites for Container Deployments**
 
 1. **Azure CLI Authentication (Required):**
    ```powershell
@@ -212,7 +213,7 @@ python -m pip install --upgrade pip
 python -m pip install -r "$STAGE/requirements.txt" --target "$STAGE/.python_packages/lib/site-packages"
 Compress-Archive -Path "$STAGE/*" -DestinationPath $ZIP -Force
 
-# CRITICAL: Disable remote build
+# Disable remote build
 az functionapp config appsettings set --name $APP --resource-group $RG --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
 
 # Deploy the vendored package
@@ -695,7 +696,7 @@ ReportMate is built with a strict modularization model where each module follows
 - Tables: `apps\www\src\components\tables\[Module]Table.tsx`
 - Widgets: `apps\www\src\components\widgets\[Module].tsx`
 
-### **CRITICAL: No Monolithic Code Allowed**
+### **No Monolithic Code Allowed**
 
 **ELIMINATED MONOLITHIC FILES:**
 - `component-data.ts` - DELETED
