@@ -10,7 +10,7 @@ output "api_gateway_id" {
 
 output "api_domain_name" {
   description = "API Gateway domain name"
-  value       = "${aws_api_gateway_rest_api.main.id}.execute-api.${data.aws_region.current.name}.amazonaws.com"
+  value       = "${aws_api_gateway_rest_api.main.id}.execute-api.${data.aws_region.current.id}.amazonaws.com"
 }
 
 output "lambda_function_arn" {
@@ -20,6 +20,11 @@ output "lambda_function_arn" {
 
 output "lambda_function_name" {
   description = "Lambda function name"
+  value       = aws_lambda_function.api.function_name
+}
+
+output "api_handler_name" {
+  description = "API handler Lambda function name (alias)"
   value       = aws_lambda_function.api.function_name
 }
 

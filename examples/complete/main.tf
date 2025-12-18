@@ -47,14 +47,14 @@ module "reportmate" {
 
   # Custom Domain
   enable_custom_domain = true
-  domain_name         = var.domain_name
-  acm_certificate_arn = var.acm_certificate_arn
+  domain_name          = var.domain_name
+  acm_certificate_arn  = var.acm_certificate_arn
 
   # ECR
   enable_ecr = true
 
   # Monitoring
-  enable_monitoring = true
+  enable_monitoring  = true
   log_retention_days = 90
 
   # Tags

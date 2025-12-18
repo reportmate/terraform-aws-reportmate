@@ -1,4 +1,8 @@
 # =================================================================
+# ReportMate AWS Infrastructure Variables (Serverless Edition)
+# =================================================================
+
+# =================================================================
 # REQUIRED VARIABLES
 # =================================================================
 
@@ -40,15 +44,15 @@ variable "availability_zones" {
   default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
 }
 
-# =================================================================
-# DATABASE CONFIGURATION
-# =================================================================
-
-variable "db_instance_class" {
-  type        = string
-  description = "RDS instance class"
-  default     = "db.t3.micro"
+variable "single_nat_gateway" {
+  type        = bool
+  description = "Use a single NAT Gateway for all AZs (cost optimization for non-prod)"
+  default     = true
 }
+
+# =================================================================
+# DATABASE CONFIGURATION (Aurora Serverless v2)
+# =================================================================
 
 variable "db_name" {
   type        = string
@@ -62,10 +66,52 @@ variable "db_username" {
   default     = "reportmate"
 }
 
-variable "db_storage_gb" {
+variable "db_min_capacity" {
   type        = number
-  description = "PostgreSQL storage size in GB"
-  default     = 20
+  description = "Minimum Aurora Serverless v2 capacity (in ACUs, 0.5-128)"
+  default     = 0.5
+}
+
+variable "db_max_capacity" {
+  type        = number
+  description = "Maximum Aurora Serverless v2 capacity (in ACUs, 0.5-128)"
+  default     = 16
+}
+
+variable "db_instance_count" {
+  type        = number
+  description = "Number of Aurora instances (1 for dev, 2+ for HA in prod)"
+  default     = 1
+}
+
+variable "enable_db_data_api" {
+  type        = bool
+  description = "Enable Aurora Data API for Lambda access without VPC"
+  default     = true
+}
+
+variable "enable_db_iam_auth" {
+  type        = bool
+  description = "Enable IAM database authentication for Lambdas"
+  default     = true
+}
+
+variable "enable_rds_proxy" {
+  type        = bool
+  description = "Enable RDS Proxy for Lambda connection pooling (recommended for prod)"
+  default     = false
+}
+
+variable "deletion_protection" {
+  type        = bool
+  description = "Enable deletion protection on Aurora cluster"
+  default     = true
+}
+
+variable "skip_final_snapshot" {
+  type        = bool
+  description = "Skip final snapshot when deleting cluster (false for prod)"
+  default     = false
 }
 
 # =================================================================
@@ -79,55 +125,55 @@ variable "enable_s3_versioning" {
 }
 
 # =================================================================
-# CONTAINER CONFIGURATION
+# LAMBDA NEXT.JS CONFIGURATION
 # =================================================================
 
-variable "frontend_image" {
+variable "nextjs_lambda_bucket" {
   type        = string
-  description = "Docker image for the frontend container"
-  default     = "ghcr.io/reportmate/reportmate-app-web"
-}
-
-variable "frontend_image_tag" {
-  type        = string
-  description = "Tag for the frontend container image"
-  default     = "latest"
-}
-
-variable "container_cpu" {
-  type        = number
-  description = "CPU units for the container (1024 = 1 vCPU)"
-  default     = 512
-}
-
-variable "container_memory" {
-  type        = number
-  description = "Memory for the container in MB"
-  default     = 1024
-}
-
-variable "desired_count" {
-  type        = number
-  description = "Desired number of container instances"
-  default     = 2
-}
-
-variable "create_ecr_repository" {
-  type        = bool
-  description = "Create an ECR repository for container images"
-  default     = false
-}
-
-variable "existing_ecr_repository_url" {
-  type        = string
-  description = "URL of existing ECR repository (if not creating new)"
+  description = "S3 bucket containing the Next.js Lambda deployment package"
   default     = ""
 }
 
-variable "ecr_image_retention_count" {
+variable "nextjs_lambda_key" {
+  type        = string
+  description = "S3 key for the Next.js Lambda deployment package"
+  default     = "deployments/nextjs/server.zip"
+}
+
+variable "nextjs_lambda_hash" {
+  type        = string
+  description = "SHA256 hash of the Lambda package for change detection"
+  default     = ""
+}
+
+variable "nextjs_lambda_timeout" {
   type        = number
-  description = "Number of images to retain in ECR"
-  default     = 10
+  description = "Lambda timeout in seconds (max 900 for API Gateway, 60 recommended)"
+  default     = 30
+}
+
+variable "nextjs_lambda_memory" {
+  type        = number
+  description = "Lambda memory in MB (128-10240, higher = more CPU)"
+  default     = 1024
+}
+
+variable "nextjs_enable_vpc" {
+  type        = bool
+  description = "Enable VPC access for Next.js Lambda (required for direct DB access, not needed with Data API)"
+  default     = false
+}
+
+variable "nextjs_extra_env_vars" {
+  type        = map(string)
+  description = "Additional environment variables for the Next.js Lambda"
+  default     = {}
+}
+
+variable "enable_image_optimization" {
+  type        = bool
+  description = "Enable Lambda-based image optimization"
+  default     = true
 }
 
 # =================================================================
@@ -152,11 +198,17 @@ variable "alarm_sns_topic_arn" {
   default     = ""
 }
 
+variable "enable_xray" {
+  type        = bool
+  description = "Enable AWS X-Ray tracing for Lambdas"
+  default     = true
+}
+
 # =================================================================
 # AUTHENTICATION CONFIGURATION
 # =================================================================
 
-variable "enable_cognito" {
+variable "enable_auth" {
   type        = bool
   description = "Enable AWS Cognito for authentication"
   default     = true
@@ -175,9 +227,9 @@ variable "nextauth_secret" {
   default     = ""
 }
 
-variable "client_passphrases" {
+variable "client_passphrase" {
   type        = string
-  description = "Comma-separated list of client passphrases for device authentication"
+  description = "Client passphrase for device authentication"
   default     = ""
   sensitive   = true
 }
@@ -196,6 +248,12 @@ variable "custom_domain_name" {
   type        = string
   description = "Custom domain name (e.g., reportmate.example.com)"
   default     = ""
+}
+
+variable "app_base_url" {
+  type        = string
+  description = "Base URL for the application (used for auth callbacks before CloudFront is created)"
+  default     = "https://localhost:3000"
 }
 
 variable "acm_certificate_arn" {
@@ -218,7 +276,8 @@ variable "tags" {
   type        = map(string)
   description = "A map of tags to assign to resources"
   default = {
-    Project   = "ReportMate"
-    ManagedBy = "Terraform"
+    Project      = "ReportMate"
+    ManagedBy    = "Terraform"
+    Architecture = "Serverless"
   }
 }

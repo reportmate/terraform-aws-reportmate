@@ -13,12 +13,12 @@ resource "aws_secretsmanager_secret" "app_secrets" {
 resource "aws_secretsmanager_secret_version" "app_secrets" {
   secret_id = aws_secretsmanager_secret.app_secrets.id
   secret_string = jsonencode({
-    db_password        = var.db_password
-    db_url             = var.db_url
-    nextauth_secret    = var.nextauth_secret
-    client_passphrase  = var.client_passphrase
-    cognito_client_id  = var.cognito_client_id
-    cognito_secret     = var.cognito_client_secret
+    db_password       = var.db_password
+    db_url            = var.db_url
+    nextauth_secret   = var.nextauth_secret
+    client_passphrase = var.client_passphrase
+    cognito_client_id = var.cognito_client_id
+    cognito_secret    = var.cognito_client_secret
   })
 }
 

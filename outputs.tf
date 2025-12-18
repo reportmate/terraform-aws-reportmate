@@ -1,4 +1,8 @@
 # =================================================================
+# ReportMate AWS Infrastructure Outputs (Serverless Edition)
+# =================================================================
+
+# =================================================================
 # NETWORKING OUTPUTS
 # =================================================================
 
@@ -18,46 +22,67 @@ output "public_subnet_ids" {
 }
 
 # =================================================================
-# DATABASE OUTPUTS
+# DATABASE OUTPUTS (Aurora Serverless v2)
 # =================================================================
 
-output "database_endpoint" {
-  description = "RDS PostgreSQL endpoint"
-  value       = module.database.db_endpoint
+output "database_cluster_endpoint" {
+  description = "Aurora Serverless v2 cluster endpoint (writer)"
+  value       = module.database.cluster_endpoint
+}
+
+output "database_reader_endpoint" {
+  description = "Aurora Serverless v2 reader endpoint"
+  value       = module.database.cluster_reader_endpoint
+}
+
+output "database_proxy_endpoint" {
+  description = "RDS Proxy endpoint (when enabled)"
+  value       = module.database.proxy_endpoint
 }
 
 output "database_port" {
-  description = "RDS PostgreSQL port"
-  value       = module.database.db_port
+  description = "Aurora PostgreSQL port"
+  value       = module.database.cluster_port
 }
 
 output "database_name" {
   description = "Database name"
-  value       = var.db_name
+  value       = module.database.database_name
+}
+
+output "database_cluster_arn" {
+  description = "Aurora cluster ARN (for Data API)"
+  value       = module.database.cluster_arn
+}
+
+output "database_connection_string" {
+  description = "Full connection string for Aurora (use proxy endpoint if available)"
+  value       = "postgresql://${var.db_username}@${module.database.proxy_endpoint != null ? module.database.proxy_endpoint : module.database.cluster_endpoint}:${module.database.cluster_port}/${module.database.database_name}?sslmode=require"
+  sensitive   = true
 }
 
 # =================================================================
-# CONTAINER OUTPUTS
+# LAMBDA OUTPUTS (Next.js)
 # =================================================================
 
-output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = module.containers.ecs_cluster_name
+output "nextjs_lambda_function_name" {
+  description = "Name of the Next.js server Lambda function"
+  value       = module.serverless_nextjs.server_function_name
 }
 
-output "ecs_service_name" {
-  description = "Name of the ECS service"
-  value       = module.containers.ecs_service_name
+output "nextjs_function_url" {
+  description = "Lambda Function URL for Next.js server"
+  value       = module.serverless_nextjs.function_url
 }
 
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = module.containers.alb_dns_name
+output "image_optimizer_url" {
+  description = "Lambda Function URL for image optimization"
+  value       = module.serverless_nextjs.image_optimizer_url
 }
 
-output "ecr_repository_url" {
-  description = "URL of the ECR repository"
-  value       = var.create_ecr_repository ? module.ecr[0].repository_url : var.existing_ecr_repository_url
+output "lambda_security_group_id" {
+  description = "Security group ID for Lambda functions (when VPC enabled)"
+  value       = module.serverless_nextjs.lambda_security_group_id
 }
 
 # =================================================================
@@ -69,9 +94,19 @@ output "api_endpoint" {
   value       = module.api.api_endpoint
 }
 
+output "api_gateway_id" {
+  description = "API Gateway ID"
+  value       = module.api.api_gateway_id
+}
+
 output "websocket_endpoint" {
   description = "WebSocket API endpoint URL"
   value       = module.messaging.websocket_endpoint
+}
+
+output "websocket_url" {
+  description = "WebSocket connection URL for clients"
+  value       = module.messaging.websocket_url
 }
 
 # =================================================================
@@ -88,23 +123,33 @@ output "cloudfront_distribution_id" {
   value       = module.cdn.cloudfront_distribution_id
 }
 
+output "cloudfront_distribution_arn" {
+  description = "CloudFront distribution ARN"
+  value       = module.cdn.cloudfront_distribution_arn
+}
+
 # =================================================================
 # AUTHENTICATION OUTPUTS
 # =================================================================
 
 output "cognito_user_pool_id" {
   description = "Cognito User Pool ID"
-  value       = var.enable_cognito ? module.auth[0].user_pool_id : null
+  value       = var.enable_auth ? module.auth[0].user_pool_id : null
 }
 
 output "cognito_client_id" {
   description = "Cognito App Client ID"
-  value       = var.enable_cognito ? module.auth[0].cognito_client_id : null
+  value       = var.enable_auth ? module.auth[0].dashboard_client_id : null
 }
 
 output "cognito_domain" {
   description = "Cognito domain"
-  value       = var.enable_cognito ? module.auth[0].cognito_domain : null
+  value       = var.enable_auth ? module.auth[0].cognito_domain : null
+}
+
+output "cognito_issuer_url" {
+  description = "Cognito OIDC issuer URL"
+  value       = var.enable_auth ? module.auth[0].issuer_url : null
 }
 
 # =================================================================
@@ -116,18 +161,42 @@ output "assets_bucket_name" {
   value       = module.storage.assets_bucket_name
 }
 
+output "assets_bucket_arn" {
+  description = "S3 bucket ARN for static assets"
+  value       = module.storage.assets_bucket_arn
+}
+
 output "data_bucket_name" {
   description = "S3 bucket name for data storage"
   value       = module.storage.data_bucket_name
 }
 
 # =================================================================
+# MESSAGING OUTPUTS
+# =================================================================
+
+output "sqs_queue_url" {
+  description = "SQS queue URL for async processing"
+  value       = module.messaging.queue_url
+}
+
+output "sqs_queue_arn" {
+  description = "SQS queue ARN"
+  value       = module.messaging.queue_arn
+}
+
+# =================================================================
 # SECRETS OUTPUTS
 # =================================================================
 
-output "secrets_arn" {
-  description = "ARN of the Secrets Manager secret"
-  value       = module.secrets.secrets_arn
+output "app_secret_arn" {
+  description = "ARN of the application secrets"
+  value       = module.secrets.app_secret_arn
+}
+
+output "db_credentials_arn" {
+  description = "ARN of the database credentials secret"
+  value       = module.secrets.db_credentials_arn
 }
 
 # =================================================================
@@ -137,6 +206,11 @@ output "secrets_arn" {
 output "cloudwatch_log_group" {
   description = "CloudWatch log group name"
   value       = module.monitoring.log_group_name
+}
+
+output "cloudwatch_dashboard_name" {
+  description = "CloudWatch dashboard name"
+  value       = module.monitoring.dashboard_name
 }
 
 # =================================================================
@@ -149,6 +223,25 @@ output "frontend_url" {
 }
 
 output "api_url" {
-  description = "URL of the API"
+  description = "Public API URL"
   value       = module.api.api_endpoint
+}
+
+# =================================================================
+# DEPLOYMENT INFO
+# =================================================================
+
+output "deployment_info" {
+  description = "Summary of deployed serverless infrastructure"
+  value = {
+    architecture = "100% Serverless"
+    compute      = "AWS Lambda"
+    database     = "Aurora Serverless v2 (PostgreSQL)"
+    cdn          = "CloudFront"
+    api          = "API Gateway HTTP API"
+    auth         = var.enable_auth ? "Cognito" : "Disabled"
+    realtime     = "API Gateway WebSocket"
+    region       = data.aws_region.current.id
+    account_id   = data.aws_caller_identity.current.account_id
+  }
 }

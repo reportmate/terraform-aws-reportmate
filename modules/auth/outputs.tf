@@ -52,7 +52,7 @@ output "issuer_url" {
 
 output "hosted_ui_url" {
   description = "Hosted UI URL"
-  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com"
+  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.id}.amazoncognito.com"
 }
 
 data "aws_region" "current" {}

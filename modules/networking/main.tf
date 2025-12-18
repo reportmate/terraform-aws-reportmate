@@ -149,7 +149,7 @@ resource "aws_route_table_association" "database" {
 # VPC Endpoints for AWS Services (cost optimization - avoid NAT charges)
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.s3"
   vpc_endpoint_type = "Gateway"
 
   route_table_ids = concat(
@@ -165,7 +165,7 @@ resource "aws_vpc_endpoint" "s3" {
 resource "aws_vpc_endpoint" "ecr_api" {
   count             = var.enable_vpc_endpoints ? 1 : 0
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.ecr.api"
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.ecr.api"
   vpc_endpoint_type = "Interface"
 
   subnet_ids          = aws_subnet.private[*].id
@@ -180,7 +180,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
 resource "aws_vpc_endpoint" "ecr_dkr" {
   count             = var.enable_vpc_endpoints ? 1 : 0
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.ecr.dkr"
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.ecr.dkr"
   vpc_endpoint_type = "Interface"
 
   subnet_ids          = aws_subnet.private[*].id
@@ -195,7 +195,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
 resource "aws_vpc_endpoint" "logs" {
   count             = var.enable_vpc_endpoints ? 1 : 0
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.logs"
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.logs"
   vpc_endpoint_type = "Interface"
 
   subnet_ids          = aws_subnet.private[*].id
@@ -210,7 +210,7 @@ resource "aws_vpc_endpoint" "logs" {
 resource "aws_vpc_endpoint" "secretsmanager" {
   count             = var.enable_vpc_endpoints ? 1 : 0
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.secretsmanager"
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.secretsmanager"
   vpc_endpoint_type = "Interface"
 
   subnet_ids          = aws_subnet.private[*].id
@@ -219,6 +219,54 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-secretsmanager-endpoint"
+  })
+}
+
+# Lambda VPC Endpoint (for Lambda functions in VPC)
+resource "aws_vpc_endpoint" "lambda" {
+  count             = var.enable_vpc_endpoints ? 1 : 0
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.lambda"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-lambda-endpoint"
+  })
+}
+
+# RDS Data API Endpoint (for Aurora Serverless Data API)
+resource "aws_vpc_endpoint" "rds_data" {
+  count             = var.enable_vpc_endpoints ? 1 : 0
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.rds-data"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-rds-data-endpoint"
+  })
+}
+
+# SQS Endpoint (for Lambda -> SQS)
+resource "aws_vpc_endpoint" "sqs" {
+  count             = var.enable_vpc_endpoints ? 1 : 0
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.sqs"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-sqs-endpoint"
   })
 }
 

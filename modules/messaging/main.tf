@@ -81,12 +81,12 @@ resource "aws_apigatewayv2_stage" "websocket" {
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.websocket.arn
     format = jsonencode({
-      requestId         = "$context.requestId"
-      ip                = "$context.identity.sourceIp"
-      requestTime       = "$context.requestTime"
-      routeKey          = "$context.routeKey"
-      status            = "$context.status"
-      connectionId      = "$context.connectionId"
+      requestId          = "$context.requestId"
+      ip                 = "$context.identity.sourceIp"
+      requestTime        = "$context.requestTime"
+      routeKey           = "$context.routeKey"
+      status             = "$context.status"
+      connectionId       = "$context.connectionId"
       integrationLatency = "$context.integrationLatency"
     })
   }
@@ -110,8 +110,8 @@ resource "aws_cloudwatch_log_group" "websocket" {
 resource "aws_sqs_queue" "messages" {
   name                       = "${var.project_name}-${var.environment}-messages"
   visibility_timeout_seconds = 30
-  message_retention_seconds  = 86400  # 1 day
-  receive_wait_time_seconds  = 20     # Long polling
+  message_retention_seconds  = 86400 # 1 day
+  receive_wait_time_seconds  = 20    # Long polling
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dlq.arn
@@ -123,8 +123,8 @@ resource "aws_sqs_queue" "messages" {
 
 # Dead letter queue
 resource "aws_sqs_queue" "dlq" {
-  name                       = "${var.project_name}-${var.environment}-messages-dlq"
-  message_retention_seconds  = 1209600  # 14 days
+  name                      = "${var.project_name}-${var.environment}-messages-dlq"
+  message_retention_seconds = 1209600 # 14 days
 
   tags = var.tags
 }
@@ -164,9 +164,9 @@ resource "aws_sns_topic_subscription" "sqs" {
 
 # DynamoDB table for WebSocket connections (replaces Azure SignalR connection management)
 resource "aws_dynamodb_table" "connections" {
-  name           = "${var.project_name}-${var.environment}-connections"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "connectionId"
+  name         = "${var.project_name}-${var.environment}-connections"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "connectionId"
 
   attribute {
     name = "connectionId"

@@ -20,8 +20,9 @@ variable "private_subnet_ids" {
 
 variable "database_url" {
   type        = string
-  description = "Database connection URL"
+  description = "Database connection URL (for VPC mode)"
   sensitive   = true
+  default     = ""
 }
 
 variable "secrets_arn" {
@@ -32,11 +33,32 @@ variable "secrets_arn" {
 variable "websocket_endpoint" {
   type        = string
   description = "WebSocket API endpoint"
+  default     = ""
 }
 
 variable "database_security_group_id" {
   type        = string
   description = "Security group ID for database access"
+  default     = ""
+}
+
+# Aurora Data API support (serverless mode)
+variable "use_data_api" {
+  type        = bool
+  description = "Use Aurora Data API instead of VPC database connection"
+  default     = false
+}
+
+variable "aurora_cluster_arn" {
+  type        = string
+  description = "Aurora cluster ARN (for Data API)"
+  default     = ""
+}
+
+variable "aurora_secret_arn" {
+  type        = string
+  description = "Secret ARN for Aurora authentication (for Data API)"
+  default     = ""
 }
 
 variable "log_retention_days" {

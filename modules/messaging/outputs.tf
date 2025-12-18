@@ -42,3 +42,19 @@ output "manage_connections_policy_arn" {
   description = "IAM policy ARN for managing connections"
   value       = aws_iam_policy.manage_connections.arn
 }
+
+# Aliases for root module compatibility
+output "websocket_url" {
+  description = "WebSocket endpoint URL (alias)"
+  value       = aws_apigatewayv2_stage.websocket.invoke_url
+}
+
+output "queue_arn" {
+  description = "SQS queue ARN (alias)"
+  value       = aws_sqs_queue.messages.arn
+}
+
+output "queue_url" {
+  description = "SQS queue URL (alias)"
+  value       = aws_sqs_queue.messages.url
+}

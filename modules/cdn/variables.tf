@@ -8,27 +8,50 @@ variable "environment" {
   description = "Deployment environment"
 }
 
-variable "assets_bucket_domain_name" {
+# Origin Configuration
+variable "lambda_function_url" {
+  type        = string
+  description = "Lambda Function URL for the Next.js server"
+  default     = ""
+}
+
+variable "api_endpoint" {
+  type        = string
+  description = "API Gateway endpoint URL"
+  default     = ""
+}
+
+# S3 Static Assets
+variable "assets_bucket_name" {
+  type        = string
+  description = "S3 assets bucket name"
+}
+
+variable "assets_bucket_arn" {
+  type        = string
+  description = "S3 assets bucket ARN"
+}
+
+variable "assets_bucket_regional_domain" {
   type        = string
   description = "S3 assets bucket regional domain name"
 }
 
-variable "cloudfront_oai_path" {
+# Optional: Image Optimization
+variable "image_optimizer_url" {
   type        = string
-  description = "CloudFront Origin Access Identity path"
+  description = "Lambda Function URL for image optimization"
+  default     = ""
 }
 
-variable "alb_dns_name" {
-  type        = string
-  description = "ALB DNS name"
+# Custom Domain
+variable "enable_custom_domain" {
+  type        = bool
+  description = "Enable custom domain"
+  default     = false
 }
 
-variable "api_domain_name" {
-  type        = string
-  description = "API Gateway domain name"
-}
-
-variable "custom_domain" {
+variable "custom_domain_name" {
   type        = string
   description = "Custom domain name"
   default     = ""
@@ -40,10 +63,11 @@ variable "acm_certificate_arn" {
   default     = ""
 }
 
+# CloudFront Settings
 variable "price_class" {
   type        = string
   description = "CloudFront price class"
-  default     = "PriceClass_100"  # US, Canada, Europe
+  default     = "PriceClass_100" # US, Canada, Europe
 }
 
 variable "geo_restriction_type" {
@@ -56,12 +80,6 @@ variable "geo_restriction_locations" {
   type        = list(string)
   description = "Geo restriction locations"
   default     = []
-}
-
-variable "logs_bucket_domain_name" {
-  type        = string
-  description = "S3 bucket domain name for CloudFront logs"
-  default     = ""
 }
 
 variable "waf_web_acl_arn" {

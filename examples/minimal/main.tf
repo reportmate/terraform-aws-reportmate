@@ -12,7 +12,7 @@ module "reportmate_minimal" {
   environment  = "dev"
 
   # Networking - Single AZ for cost savings
-  vpc_cidr = "10.0.0.0/16"
+  vpc_cidr           = "10.0.0.0/16"
   availability_zones = ["us-east-1a"]
   single_nat_gateway = true
 

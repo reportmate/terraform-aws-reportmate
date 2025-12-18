@@ -3,6 +3,16 @@ output "app_secrets_arn" {
   value       = aws_secretsmanager_secret.app_secrets.arn
 }
 
+output "app_secret_arn" {
+  description = "Application secrets ARN (alias)"
+  value       = aws_secretsmanager_secret.app_secrets.arn
+}
+
+output "secrets_arn" {
+  description = "Application secrets ARN (alias)"
+  value       = aws_secretsmanager_secret.app_secrets.arn
+}
+
 output "app_secrets_name" {
   description = "Application secrets name"
   value       = aws_secretsmanager_secret.app_secrets.name

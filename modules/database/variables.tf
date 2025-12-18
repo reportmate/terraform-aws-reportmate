@@ -1,95 +1,133 @@
 variable "project_name" {
+  description = "Project name for resource naming"
   type        = string
-  description = "Name of the project"
 }
 
 variable "environment" {
+  description = "Environment (dev, staging, prod)"
   type        = string
-  description = "Deployment environment"
 }
 
 variable "vpc_id" {
-  type        = string
   description = "VPC ID"
+  type        = string
+}
+
+variable "vpc_cidr" {
+  description = "VPC CIDR block for Lambda access"
+  type        = string
 }
 
 variable "database_subnet_ids" {
-  type        = list(string)
   description = "List of database subnet IDs"
+  type        = list(string)
 }
 
 variable "allowed_security_groups" {
+  description = "List of security group IDs allowed to connect"
   type        = list(string)
-  description = "Security groups allowed to access the database"
   default     = []
 }
 
-variable "db_instance_class" {
-  type        = string
-  description = "RDS instance class"
-  default     = "db.t3.micro"
+# Aurora Serverless v2 Scaling
+variable "serverless_min_capacity" {
+  description = "Minimum ACU capacity (0.5 = ~1GB RAM, scales to 0 when idle)"
+  type        = number
+  default     = 0.5
 }
 
-variable "db_name" {
-  type        = string
-  description = "Database name"
+variable "serverless_max_capacity" {
+  description = "Maximum ACU capacity (up to 128)"
+  type        = number
+  default     = 16
 }
 
+variable "instance_count" {
+  description = "Number of Aurora instances (1 for dev, 2+ for HA)"
+  type        = number
+  default     = 1
+}
+
+# Database credentials
 variable "db_username" {
+  description = "Master username"
   type        = string
-  description = "Database admin username"
+  default     = "reportmate"
 }
 
 variable "db_password" {
+  description = "Master password"
   type        = string
-  description = "Database admin password"
   sensitive   = true
 }
 
-variable "db_storage_gb" {
-  type        = number
-  description = "Allocated storage in GB"
-  default     = 20
-}
-
-variable "db_max_storage_gb" {
-  type        = number
-  description = "Maximum storage for autoscaling in GB"
-  default     = 100
-}
-
-variable "engine_version" {
+variable "db_secret_arn" {
+  description = "ARN of Secrets Manager secret containing DB credentials"
   type        = string
-  description = "PostgreSQL engine version"
-  default     = "16.3"
+  default     = ""
 }
 
-variable "multi_az" {
+# Features
+variable "enable_data_api" {
+  description = "Enable Data API for serverless queries (Lambda without VPC)"
   type        = bool
-  description = "Enable Multi-AZ deployment"
+  default     = true
+}
+
+variable "enable_iam_auth" {
+  description = "Enable IAM database authentication"
+  type        = bool
+  default     = true
+}
+
+variable "enable_rds_proxy" {
+  description = "Enable RDS Proxy for connection pooling (recommended for Lambda)"
+  type        = bool
   default     = false
 }
 
+# Encryption
+variable "kms_key_arn" {
+  description = "KMS key ARN for encryption (uses AWS managed key if not specified)"
+  type        = string
+  default     = ""
+}
+
+# Backup
 variable "backup_retention_days" {
+  description = "Number of days to retain backups"
   type        = number
-  description = "Backup retention period in days"
   default     = 7
 }
 
-variable "enable_performance_insights" {
-  type        = bool
+# Monitoring
+variable "performance_insights_enabled" {
   description = "Enable Performance Insights"
-  default     = false
+  type        = bool
+  default     = true
 }
 
 variable "enhanced_monitoring_interval" {
+  description = "Enhanced monitoring interval in seconds (0 to disable)"
   type        = number
-  description = "Enhanced monitoring interval (0 to disable)"
-  default     = 0
+  default     = 60
+}
+
+# Protection
+variable "deletion_protection" {
+  description = "Enable deletion protection"
+  type        = bool
+  default     = true
+}
+
+variable "skip_final_snapshot" {
+  description = "Skip final snapshot on deletion"
+  type        = bool
+  default     = false
 }
 
 variable "tags" {
+  description = "Resource tags"
   type        = map(string)
-  description = "Tags to apply to resources"
   default     = {}
 }

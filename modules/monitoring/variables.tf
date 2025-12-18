@@ -1,3 +1,5 @@
+# Monitoring Module - Variables (Serverless)
+
 variable "project_name" {
   type        = string
   description = "Name of the project"
@@ -14,28 +16,36 @@ variable "log_retention_days" {
   default     = 30
 }
 
-variable "ecs_cluster_name" {
+# Serverless resources
+variable "lambda_function_names" {
+  type        = list(string)
+  description = "Lambda function names to monitor"
+  default     = []
+}
+
+variable "aurora_cluster_id" {
   type        = string
-  description = "ECS cluster name for metrics"
+  description = "Aurora Serverless cluster identifier"
   default     = ""
 }
 
-variable "ecs_service_name" {
+variable "api_gateway_id" {
   type        = string
-  description = "ECS service name for metrics"
+  description = "API Gateway ID to monitor"
   default     = ""
 }
 
-variable "db_instance_identifier" {
+variable "cloudfront_distribution_id" {
   type        = string
-  description = "RDS instance identifier for metrics"
+  description = "CloudFront distribution ID to monitor"
   default     = ""
 }
 
-variable "alb_name" {
-  type        = string
-  description = "ALB name for metrics"
-  default     = ""
+# Alarms
+variable "enable_alarms" {
+  type        = bool
+  description = "Enable CloudWatch alarms"
+  default     = true
 }
 
 variable "alarm_sns_topic_arn" {
@@ -44,30 +54,49 @@ variable "alarm_sns_topic_arn" {
   default     = ""
 }
 
-variable "cpu_alarm_threshold" {
+variable "lambda_error_threshold" {
   type        = number
-  description = "CPU utilization alarm threshold"
+  description = "Lambda error count alarm threshold"
+  default     = 5
+}
+
+variable "lambda_duration_threshold_ms" {
+  type        = number
+  description = "Lambda duration alarm threshold in milliseconds"
+  default     = 10000 # 10 seconds
+}
+
+variable "lambda_concurrent_threshold" {
+  type        = number
+  description = "Lambda concurrent executions alarm threshold"
+  default     = 100
+}
+
+variable "aurora_cpu_threshold" {
+  type        = number
+  description = "Aurora CPU utilization alarm threshold"
   default     = 80
 }
 
-variable "memory_alarm_threshold" {
+variable "aurora_connections_threshold" {
   type        = number
-  description = "Memory utilization alarm threshold"
-  default     = 80
+  description = "Aurora database connections alarm threshold"
+  default     = 100
 }
 
-variable "rds_storage_threshold_bytes" {
+variable "api_gateway_5xx_threshold" {
   type        = number
-  description = "RDS free storage alarm threshold in bytes"
-  default     = 5368709120  # 5GB
+  description = "API Gateway 5xx error alarm threshold"
+  default     = 10
 }
 
-variable "error_count_threshold" {
+variable "api_gateway_latency_threshold_ms" {
   type        = number
-  description = "5xx error count alarm threshold"
-  default     = 50
+  description = "API Gateway latency alarm threshold in milliseconds"
+  default     = 5000
 }
 
+# X-Ray
 variable "enable_xray" {
   type        = bool
   description = "Enable X-Ray tracing"
