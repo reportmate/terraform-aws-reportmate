@@ -67,22 +67,22 @@ output "database_connection_string" {
 
 output "nextjs_lambda_function_name" {
   description = "Name of the Next.js server Lambda function"
-  value       = module.serverless_nextjs.server_function_name
+  value       = module.frontend.server_function_name
 }
 
 output "nextjs_function_url" {
   description = "Lambda Function URL for Next.js server"
-  value       = module.serverless_nextjs.function_url
+  value       = module.frontend.function_url
 }
 
 output "image_optimizer_url" {
   description = "Lambda Function URL for image optimization"
-  value       = module.serverless_nextjs.image_optimizer_url
+  value       = module.frontend.image_optimizer_url
 }
 
 output "lambda_security_group_id" {
   description = "Security group ID for Lambda functions (when VPC enabled)"
-  value       = module.serverless_nextjs.lambda_security_group_id
+  value       = module.frontend.lambda_security_group_id
 }
 
 # =================================================================

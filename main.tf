@@ -72,7 +72,7 @@ module "database" {
 
   # Allow Lambda security groups
   allowed_security_groups = compact([
-    module.serverless_nextjs.lambda_security_group_id,
+    module.frontend.lambda_security_group_id,
     module.api.lambda_security_group_id
   ])
 
@@ -126,10 +126,10 @@ module "storage" {
 }
 
 # ============================================================================
-# SERVERLESS NEXT.JS (Lambda + Function URLs)
+# FRONTEND (Next.js via Lambda + OpenNext)
 # ============================================================================
-module "serverless_nextjs" {
-  source = "./modules/serverless-nextjs"
+module "frontend" {
+  source = "./modules/frontend"
 
   providers = {
     aws           = aws
@@ -265,7 +265,7 @@ module "cdn" {
   environment  = var.environment
 
   # Serverless origins
-  lambda_function_url = module.serverless_nextjs.function_url
+  lambda_function_url = module.frontend.function_url
   api_endpoint        = module.api.api_endpoint
 
   # Static assets
@@ -279,7 +279,7 @@ module "cdn" {
   acm_certificate_arn  = var.acm_certificate_arn
 
   # Image optimization (when enabled)
-  image_optimizer_url = module.serverless_nextjs.image_optimizer_url
+  image_optimizer_url = module.frontend.image_optimizer_url
 
   tags = var.tags
 }
@@ -317,7 +317,7 @@ module "monitoring" {
 
   # Serverless resources to monitor
   lambda_function_names = [
-    module.serverless_nextjs.server_function_name,
+    module.frontend.server_function_name,
     module.api.api_handler_name,
     module.api.websocket_handler_name
   ]
