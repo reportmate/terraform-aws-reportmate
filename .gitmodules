@@ -1,9 +1,0 @@
-[submodule "apps/www"]
-	path = apps/www
-	url = https://github.com/reportmate/reportmate-app-web.git
-[submodule "clients/windows"]
-	path = clients/windows
-	url = https://github.com/reportmate/reportmate-client-win.git
-[submodule "infrastructure"]
-	path = infrastructure
-	url = https://github.com/reportmate/terraform-azurerm-reportmate.git
