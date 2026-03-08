@@ -94,7 +94,7 @@ Investigate any log entries such as `[ERR] Error executing osquery` or `[WRN] os
 3. to install the .nupkg use:
 
 ```
-sudo choco install com.github.reportmate.windows --source=".\clients\windows\dist\" --yes --force
+sudo choco install com.github.reportmate.windows --source=".\clients\windows\release\" --yes --force
 ```
 
 
