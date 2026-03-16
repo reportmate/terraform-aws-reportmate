@@ -1,0 +1,30 @@
+# ReportMate AWS Infrastructure
+# Copy to terraform.tfvars and fill in values
+
+region       = "ca-central-1"
+environment  = "prod"
+project_name = "reportmate"
+
+# Domain
+domain_name          = "reportmate.app"
+enable_custom_domain = false
+
+# Database
+db_username          = "reportmate"
+db_password          = "CHANGE_ME"
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 32
+
+# Auth / Secrets
+api_internal_secret = "CHANGE_ME"
+client_passphrase   = "CHANGE_ME"
+
+# Container sizing (CPU in units, memory in MiB)
+api_cpu          = 256
+api_memory       = 512
+frontend_cpu     = 256
+frontend_memory  = 512
+
+# Monitoring
+log_retention_days   = 30
+event_retention_days = 30
