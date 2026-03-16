@@ -1,0 +1,10 @@
+# Backend configuration for Terraform state.
+# Copy to backend.hcl and fill in values after running bootstrap.
+#
+# Usage: terraform init -backend-config=backend.hcl
+
+bucket         = "reportmate-terraform-state"
+key            = "prod/terraform.tfstate"
+region         = "ca-central-1"
+dynamodb_table = "reportmate-terraform-lock"
+encrypt        = true
