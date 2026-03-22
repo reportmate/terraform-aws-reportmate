@@ -194,7 +194,7 @@ resource "aws_lb_target_group" "api" {
   target_type = "ip"
 
   health_check {
-    path                = "/api/health"
+    path                = "/api/v1/health"
     healthy_threshold   = 2
     unhealthy_threshold = 5
     timeout             = 10
@@ -236,7 +236,7 @@ resource "aws_lb_listener_rule" "api" {
 
   condition {
     path_pattern {
-      values = ["/api/*"]
+      values = ["/api/v1/*"]
     }
   }
 }
@@ -282,7 +282,7 @@ resource "aws_ecs_task_definition" "api" {
     }
 
     healthCheck = {
-      command     = ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      command     = ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
       interval    = 30
       timeout     = 5
       retries     = 3
