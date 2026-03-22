@@ -48,6 +48,26 @@ module "secrets" {
   client_passphrase    = var.client_passphrase
 }
 
+# --- Storage ---
+
+module "storage" {
+  source = "./modules/storage"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
+# --- Auth ---
+
+module "auth" {
+  source = "./modules/auth"
+
+  project_name  = var.project_name
+  environment   = var.environment
+  callback_urls = var.auth_callback_urls
+  logout_urls   = var.auth_logout_urls
+}
+
 # --- Identity ---
 
 module "identity" {
@@ -55,7 +75,7 @@ module "identity" {
 
   project_name = var.project_name
   environment  = var.environment
-  secret_arns  = module.secrets.all_secret_arns
+  secret_arns  = concat(module.secrets.all_secret_arns, module.auth.secret_arns)
 
   ecr_repository_arns = [
     module.containers.ecr_api_repository_url,
@@ -100,4 +120,36 @@ module "containers" {
   frontend_log_group_name = module.monitoring.frontend_log_group_name
 
   database_security_group_id = module.database.security_group_id
+}
+
+# --- Messaging ---
+
+module "messaging" {
+  source = "./modules/messaging"
+
+  project_name      = var.project_name
+  environment       = var.environment
+  api_negotiate_url = "${module.containers.api_url}/v1/negotiate"
+}
+
+# --- Maintenance ---
+
+module "maintenance" {
+  source = "./modules/maintenance"
+
+  project_name = var.project_name
+  environment  = var.environment
+  region       = var.region
+
+  ecs_cluster_arn        = module.containers.cluster_id
+  ecs_execution_role_arn = module.identity.ecs_execution_role_arn
+  ecs_task_role_arn      = module.identity.ecs_task_role_arn
+
+  db_connection_string_secret_arn = module.secrets.db_connection_string_secret_arn
+
+  private_subnet_ids = module.networking.private_subnet_ids
+  security_group_ids = [module.containers.ecs_tasks_security_group_id]
+
+  log_group_name       = module.monitoring.maintenance_log_group_name
+  event_retention_days = var.event_retention_days
 }

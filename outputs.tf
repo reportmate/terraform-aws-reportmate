@@ -27,3 +27,41 @@ output "database_name" {
   description = "Database name"
   value       = module.database.database_name
 }
+
+# --- Storage ---
+
+output "ingest_queue_url" {
+  description = "SQS ingest queue URL"
+  value       = module.storage.ingest_queue_url
+}
+
+output "storage_bucket_name" {
+  description = "S3 storage bucket name"
+  value       = module.storage.bucket_name
+}
+
+# --- Auth ---
+
+output "cognito_user_pool_endpoint" {
+  description = "Cognito OIDC endpoint"
+  value       = module.auth.user_pool_endpoint
+}
+
+output "cognito_client_id" {
+  description = "Cognito app client ID"
+  value       = module.auth.client_id
+}
+
+# --- Messaging ---
+
+output "websocket_url" {
+  description = "WebSocket connection URL"
+  value       = module.messaging.websocket_url
+}
+
+# --- Maintenance ---
+
+output "ecr_maintenance_repository_url" {
+  description = "ECR repository URL for maintenance images"
+  value       = module.maintenance.ecr_repository_url
+}

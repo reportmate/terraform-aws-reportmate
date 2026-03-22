@@ -116,6 +116,18 @@ variable "client_passphrase" {
   sensitive   = true
 }
 
+variable "auth_callback_urls" {
+  description = "OAuth2 callback URLs for the web application"
+  type        = list(string)
+  default     = ["http://localhost:3000/api/auth/callback/cognito"]
+}
+
+variable "auth_logout_urls" {
+  description = "Logout redirect URLs"
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+}
+
 # --- Monitoring ---
 
 variable "log_retention_days" {
