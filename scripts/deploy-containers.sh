@@ -14,7 +14,7 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 echo "==> Authenticating to ECR ($REGION)"
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
 
-CLUSTER_NAME="reportmate-prod"
+CLUSTER_NAME="reportmate-prod-cluster"
 TAG="$(date +%Y%m%d%H%M%S)"
 
 deploy_api() {
@@ -50,6 +50,7 @@ deploy_frontend() {
   echo "==> Building frontend image: $IMAGE"
   docker build \
     --platform linux/amd64 \
+    --build-arg NEXT_PUBLIC_DEMO_MODE=true \
     -t "$IMAGE" -t "$ECR_URL:latest" \
     -f "$MONO_ROOT/apps/www/Dockerfile" \
     "$MONO_ROOT/apps/www"
