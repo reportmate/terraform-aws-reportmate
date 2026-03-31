@@ -65,3 +65,20 @@ output "ecr_maintenance_repository_url" {
   description = "ECR repository URL for maintenance images"
   value       = module.maintenance.ecr_repository_url
 }
+
+# --- Demo Loop ---
+
+output "demo_loop_ecr_repository_url" {
+  description = "ECR repository URL for demo-loop images"
+  value       = module.demo_loop.ecr_repository_url
+}
+
+output "demo_loop_service_name" {
+  description = "ECS service name for the demo loop"
+  value       = module.demo_loop.service_name
+}
+
+output "region" {
+  description = "AWS region"
+  value       = var.region
+}

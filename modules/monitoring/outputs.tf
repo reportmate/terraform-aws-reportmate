@@ -13,6 +13,11 @@ output "maintenance_log_group_name" {
   value       = aws_cloudwatch_log_group.maintenance.name
 }
 
+output "demo_loop_log_group_name" {
+  description = "Demo loop CloudWatch log group name"
+  value       = aws_cloudwatch_log_group.demo_loop.name
+}
+
 output "alerts_topic_arn" {
   description = "SNS alerts topic ARN"
   value       = aws_sns_topic.alerts.arn

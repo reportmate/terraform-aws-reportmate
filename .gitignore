@@ -1,19 +1,249 @@
-# Terraform
-.terraform/
+# =================================================================
+# ReportMate AWS Infrastructure .gitignore
+# =================================================================
+
+# =================================================================
+# TERRAFORM
+# =================================================================
+
+# Local .terraform directories
+**/.terraform/*
+
+# State files
 *.tfstate
 *.tfstate.*
-*.tfplan
+
+# Crash log files
 crash.log
 crash.*.log
 
-# Sensitive variables
+# Exclude all .tfvars files (contain sensitive data)
 *.tfvars
+*.tfvars.json
+*.tfvars.bak
 !terraform.tfvars.example
+!backend.hcl.example
 
-# OS
-.DS_Store
+# Override files (local use only)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
-# IDE
+# Plan files
+*tfplan*
+*.tfplan
+tfplan
+plan*.txt
+
+# Terraform backend configuration (contains sensitive data)
+backend.hcl
+
+# Terraform CLI config
+.terraformrc
+terraform.rc
+
+# Terraform modules cache (regenerated via terraform init)
+.terraform.lock.hcl
+
+# =================================================================
+# AWS & CLOUD
+# =================================================================
+
+# AWS CLI credentials (never commit)
+.aws/
+aws-credentials
+credentials
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# CDK
+cdk.out/
+cdk.context.json
+
+# =================================================================
+# PYTHON
+# =================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# =================================================================
+# DEVELOPMENT TOOLS
+# =================================================================
+
+# VS Code
 .vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json.example
+
+# IntelliJ IDEA
 .idea/
-docs/*
+*.iws
+*.iml
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+
+# =================================================================
+# OPERATING SYSTEM
+# =================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =================================================================
+# SECURITY & SECRETS
+# =================================================================
+
+# Environment files with secrets
+.env.local
+.env.production
+.env.development
+.env.staging
+
+# SSH keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+
+# Secrets files
+secrets.json
+
+# =================================================================
+# BUILD & DEPLOYMENT
+# =================================================================
+
+# Node.js (tooling)
+node_modules/
+npm-debug.log*
+
+# Docker
+docker-compose.override.yml
+
+# Deployment artifacts
+*.zip
+*.tar.gz
+
+# Logs
+logs/
+*.log
+
+# =================================================================
+# TEMPORARY & CACHE FILES
+# =================================================================
+
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+.cache/
+cache/
+tmp/
+temp/
+
+# =================================================================
+# PROJECT SPECIFIC
+# =================================================================
+
+# Deployment packages
+reportmate-*.zip
+deployment-*.log
+function-*.zip
+api-*.zip
+
+# Database dumps
+*.sql.backup
+database-*.dump
+
+# Bootstrap state (one-time setup, should not be re-run)
+bootstrap/terraform.tfstate
+bootstrap/terraform.tfstate.*
+bootstrap/.terraform/

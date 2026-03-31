@@ -153,3 +153,25 @@ module "maintenance" {
   log_group_name       = module.monitoring.maintenance_log_group_name
   event_retention_days = var.event_retention_days
 }
+
+# --- Demo Loop ---
+
+module "demo_loop" {
+  source = "./modules/demo-loop"
+
+  project_name = var.project_name
+  environment  = var.environment
+  region       = var.region
+
+  ecs_cluster_arn        = module.containers.cluster_id
+  ecs_execution_role_arn = module.identity.ecs_execution_role_arn
+  ecs_task_role_arn      = module.identity.ecs_task_role_arn
+
+  client_passphrase_secret_arn = module.secrets.client_passphrase_secret_arn
+  api_url                      = var.demo_api_url
+
+  private_subnet_ids = module.networking.private_subnet_ids
+  security_group_ids = [module.containers.ecs_tasks_security_group_id]
+
+  log_group_name = module.monitoring.demo_loop_log_group_name
+}

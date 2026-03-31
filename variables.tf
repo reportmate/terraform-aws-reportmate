@@ -143,3 +143,11 @@ variable "event_retention_days" {
   type        = number
   default     = 30
 }
+
+# --- Demo Loop ---
+
+variable "demo_api_url" {
+  description = "Public API URL for the demo loop to submit device payloads"
+  type        = string
+  default     = "https://demo.reportmate.app"
+}

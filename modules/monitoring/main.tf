@@ -25,6 +25,13 @@ resource "aws_cloudwatch_log_group" "maintenance" {
   tags = { Name = "${local.name_prefix}-maintenance-logs" }
 }
 
+resource "aws_cloudwatch_log_group" "demo_loop" {
+  name              = "/ecs/${local.name_prefix}/demo-loop"
+  retention_in_days = var.log_retention_days
+
+  tags = { Name = "${local.name_prefix}-demo-loop-logs" }
+}
+
 # --- CloudWatch Alarms ---
 
 resource "aws_sns_topic" "alerts" {
