@@ -314,6 +314,7 @@ resource "aws_ecs_task_definition" "frontend" {
     environment = [
       { name = "ENVIRONMENT", value = var.environment },
       { name = "PORT", value = "3000" },
+      { name = "NEXT_PUBLIC_DEMO_MODE", value = "true" },
       { name = "API_BASE_URL", value = "http://localhost:8000" },
     ]
 
@@ -330,13 +331,6 @@ resource "aws_ecs_task_definition" "frontend" {
       }
     }
 
-    healthCheck = {
-      command     = ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
-      interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 30
-    }
   }])
 
   tags = { Name = "${local.name_prefix}-frontend-task" }
