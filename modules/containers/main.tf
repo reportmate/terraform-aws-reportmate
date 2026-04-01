@@ -315,7 +315,7 @@ resource "aws_ecs_task_definition" "frontend" {
       { name = "ENVIRONMENT", value = var.environment },
       { name = "PORT", value = "3000" },
       { name = "NEXT_PUBLIC_DEMO_MODE", value = "true" },
-      { name = "API_BASE_URL", value = "http://localhost:8000" },
+      { name = "API_BASE_URL", value = "https://demo.reportmate.app" },
     ]
 
     secrets = [
