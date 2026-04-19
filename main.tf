@@ -174,9 +174,12 @@ module "demo_loop" {
 
   client_passphrase_secret_arn = module.secrets.client_passphrase_secret_arn
 
-  # Demo-loop targets the ALB directly (intra-region, intra-VPC). Avoids the
-  # cost of hair-pinning through any CDN/edge in front of demo.reportmate.app.
-  api_url = module.containers.alb_base_url
+  # Targets the public hostname because the ALB cert is for demo.reportmate.app
+  # and demo-data-generator.py validates SSL. Hairpin cost is bounded by the
+  # much smaller device_count / longer intervals set in the demo-loop module
+  # defaults; long-term fix is a Route53 private hosted zone or moving
+  # demo.reportmate.app DNS off Cloudflare proxy so it resolves to the ALB.
+  api_url = var.public_api_url
 
   subnet_ids         = module.networking.public_subnet_ids
   security_group_ids = [module.containers.ecs_tasks_security_group_id]

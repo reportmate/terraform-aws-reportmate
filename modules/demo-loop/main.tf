@@ -58,8 +58,10 @@ resource "aws_ecs_task_definition" "demo_loop" {
       { name = "REPORTMATE_PASSPHRASE", valueFrom = var.client_passphrase_secret_arn },
     ]
 
+    # Script name / flags match the reportmate-demo-loop container image.
     command = [
-      "python", "-u", "demo-loop.py",
+      "python", "-u", "demo-data-generator.py",
+      "--loop",
       "--api-url", var.api_url,
       "--count", tostring(var.device_count),
       "--batch-size", tostring(var.batch_size),
