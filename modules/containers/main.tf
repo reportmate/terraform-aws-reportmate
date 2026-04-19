@@ -171,12 +171,15 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# HTTPS listener - requires ACM certificate
-# Starts with HTTP forwarding; switch to HTTPS after cert is provisioned
+# 443 listener. HTTPS when acm_certificate_arn is set, HTTP otherwise.
+# Most production deployments will set acm_certificate_arn; the HTTP fallback
+# exists only so a fresh apply can stand up before a cert is requested.
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = 443
-  protocol          = "HTTP"
+  protocol          = var.acm_certificate_arn == "" ? "HTTP" : "HTTPS"
+  ssl_policy        = var.acm_certificate_arn == "" ? null : "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.acm_certificate_arn == "" ? null : var.acm_certificate_arn
 
   default_action {
     type             = "forward"

@@ -193,6 +193,12 @@ variable "public_api_url" {
   type        = string
 }
 
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for the ALB HTTPS listener. Empty = HTTP-only (dev only)."
+  type        = string
+  default     = ""
+}
+
 # --- Demo Loop ---
 
 variable "enable_demo_loop" {

@@ -120,3 +120,9 @@ variable "demo_mode" {
   type        = bool
   default     = false
 }
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for the 443 listener. Empty = HTTP on 443 (fresh-deploy only; set this for any real environment)."
+  type        = string
+  default     = ""
+}

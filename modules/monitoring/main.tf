@@ -85,20 +85,13 @@ resource "aws_budgets_budget" "daily" {
   limit_unit   = "USD"
   time_unit    = "DAILY"
 
+  # AWS Budgets only supports ACTUAL notifications on DAILY time_unit
+  # (FORECASTED requires MONTHLY/QUARTERLY/ANNUALLY).
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 100
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_sns_topic_arns  = [aws_sns_topic.alerts.arn]
-    subscriber_email_addresses = [var.alert_email]
-  }
-
-  notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 100
-    threshold_type             = "PERCENTAGE"
-    notification_type          = "FORECASTED"
     subscriber_sns_topic_arns  = [aws_sns_topic.alerts.arn]
     subscriber_email_addresses = [var.alert_email]
   }
