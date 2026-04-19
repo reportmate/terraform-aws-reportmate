@@ -38,6 +38,24 @@ variable "enable_custom_domain" {
   default     = false
 }
 
+variable "enable_vpc_flow_logs" {
+  description = "Enable VPC Flow Logs to S3. Recommended for production — without them, per-IP egress is invisible during cost incidents."
+  type        = bool
+  default     = true
+}
+
+variable "enable_vpc_endpoints" {
+  description = "Provision interface endpoints for ECR, CloudWatch Logs, and Secrets Manager. Adds ~$0.01/hr per endpoint per AZ; opt in once steady-state NAT egress justifies it. The S3 gateway endpoint is always created (free)."
+  type        = bool
+  default     = false
+}
+
+variable "enable_multi_az_nat" {
+  description = "Provision one NAT gateway per AZ instead of a single shared NAT. Doubles NAT hourly cost in exchange for AZ-isolated egress."
+  type        = bool
+  default     = false
+}
+
 # --- Database ---
 
 variable "db_username" {
@@ -62,6 +80,12 @@ variable "db_allocated_storage" {
   description = "RDS allocated storage in GB"
   type        = number
   default     = 32
+}
+
+variable "db_multi_az" {
+  description = "Enable RDS Multi-AZ. Roughly doubles instance + storage cost; required for prod HA."
+  type        = bool
+  default     = false
 }
 
 # --- Containers ---
@@ -136,6 +160,24 @@ variable "log_retention_days" {
   default     = 30
 }
 
+variable "alert_email" {
+  description = "Email subscribed to the alerts SNS topic (used by the cost budget and NAT egress alarm). Leave empty to skip the email subscription and budget notification."
+  type        = string
+  default     = ""
+}
+
+variable "daily_budget_usd" {
+  description = "Daily cost budget in USD. ACTUAL and FORECASTED notifications fire at 100%."
+  type        = number
+  default     = 30
+}
+
+variable "nat_bytes_out_alarm_gb" {
+  description = "Trigger the NAT BytesOutToDestination alarm if hourly egress exceeds this many GB. Set to 0 to disable the alarm."
+  type        = number
+  default     = 20
+}
+
 # --- Maintenance ---
 
 variable "event_retention_days" {
@@ -144,10 +186,23 @@ variable "event_retention_days" {
   default     = 30
 }
 
+# --- Public URL ---
+
+variable "public_api_url" {
+  description = "Public URL the browser uses to reach the API (frontend API_BASE_URL). Required so the rendered HTML points at the right hostname."
+  type        = string
+}
+
 # --- Demo Loop ---
 
-variable "demo_api_url" {
-  description = "Public API URL for the demo loop to submit device payloads"
+variable "enable_demo_loop" {
+  description = "Provision the synthetic-data demo-loop service. Default off — only meant for the public demo deployment."
+  type        = bool
+  default     = false
+}
+
+variable "demo_loop_api_url" {
+  description = "URL the demo-loop posts to. Defaults to the in-VPC ALB DNS so payloads do not hairpin through any external CDN."
   type        = string
-  default     = "https://demo.reportmate.app"
+  default     = ""
 }

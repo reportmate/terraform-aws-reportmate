@@ -109,3 +109,14 @@ variable "database_security_group_id" {
   description = "Database security group ID to allow ECS access"
   type        = string
 }
+
+variable "public_api_url" {
+  description = "Public URL the browser uses to reach the API. Wired into the frontend as API_BASE_URL."
+  type        = string
+}
+
+variable "demo_mode" {
+  description = "Set NEXT_PUBLIC_DEMO_MODE on the frontend. Only true for the public demo site."
+  type        = bool
+  default     = false
+}

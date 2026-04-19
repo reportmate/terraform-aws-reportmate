@@ -66,16 +66,16 @@ output "ecr_maintenance_repository_url" {
   value       = module.maintenance.ecr_repository_url
 }
 
-# --- Demo Loop ---
+# --- Demo Loop (only populated when enable_demo_loop = true) ---
 
 output "demo_loop_ecr_repository_url" {
   description = "ECR repository URL for demo-loop images"
-  value       = module.demo_loop.ecr_repository_url
+  value       = try(module.demo_loop[0].ecr_repository_url, null)
 }
 
 output "demo_loop_service_name" {
   description = "ECS service name for the demo loop"
-  value       = module.demo_loop.service_name
+  value       = try(module.demo_loop[0].service_name, null)
 }
 
 output "region" {

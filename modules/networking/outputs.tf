@@ -17,3 +17,8 @@ output "vpc_cidr_block" {
   description = "VPC CIDR block"
   value       = aws_vpc.main.cidr_block
 }
+
+output "nat_gateway_ids" {
+  description = "NAT gateway IDs (one or N depending on enable_multi_az_nat)."
+  value       = aws_nat_gateway.main[*].id
+}

@@ -52,3 +52,9 @@ variable "allowed_security_group_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "multi_az" {
+  description = "Provision RDS with a synchronous standby in another AZ."
+  type        = bool
+  default     = false
+}

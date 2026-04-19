@@ -3,9 +3,12 @@
 module "networking" {
   source = "./modules/networking"
 
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_cidr     = var.vpc_cidr
+  project_name         = var.project_name
+  environment          = var.environment
+  vpc_cidr             = var.vpc_cidr
+  enable_multi_az_nat  = var.enable_multi_az_nat
+  enable_vpc_flow_logs = var.enable_vpc_flow_logs
+  enable_vpc_endpoints = var.enable_vpc_endpoints
 }
 
 # --- Monitoring ---
@@ -13,9 +16,13 @@ module "networking" {
 module "monitoring" {
   source = "./modules/monitoring"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  log_retention_days = var.log_retention_days
+  project_name           = var.project_name
+  environment            = var.environment
+  log_retention_days     = var.log_retention_days
+  alert_email            = var.alert_email
+  daily_budget_usd       = var.daily_budget_usd
+  nat_bytes_out_alarm_gb = var.nat_bytes_out_alarm_gb
+  nat_gateway_ids        = module.networking.nat_gateway_ids
 }
 
 # --- Database ---
@@ -33,6 +40,7 @@ module "database" {
   allocated_storage  = var.db_allocated_storage
 
   allowed_security_group_ids = [module.containers.ecs_tasks_security_group_id]
+  multi_az                   = var.db_multi_az
 }
 
 # --- Secrets ---
@@ -120,6 +128,9 @@ module "containers" {
   frontend_log_group_name = module.monitoring.frontend_log_group_name
 
   database_security_group_id = module.database.security_group_id
+
+  public_api_url = var.public_api_url
+  demo_mode      = var.enable_demo_loop
 }
 
 # --- Messaging ---
@@ -154,10 +165,15 @@ module "maintenance" {
   event_retention_days = var.event_retention_days
 }
 
-# --- Demo Loop ---
+# --- Demo Loop (opt-in) ---
+#
+# Generates synthetic device payloads for the public demo site. Off by default
+# on the main branch — flip enable_demo_loop = true only where that behavior
+# is actually desired.
 
 module "demo_loop" {
   source = "./modules/demo-loop"
+  count  = var.enable_demo_loop ? 1 : 0
 
   project_name = var.project_name
   environment  = var.environment
@@ -168,7 +184,11 @@ module "demo_loop" {
   ecs_task_role_arn      = module.identity.ecs_task_role_arn
 
   client_passphrase_secret_arn = module.secrets.client_passphrase_secret_arn
-  api_url                      = var.demo_api_url
+
+  # Default the demo-loop target to the ALB so submissions stay intra-VPC and
+  # never hairpin through a public CDN. Override with a full URL to force an
+  # external endpoint for testing.
+  api_url = coalesce(var.demo_loop_api_url, module.containers.alb_base_url)
 
   private_subnet_ids = module.networking.private_subnet_ids
   security_group_ids = [module.containers.ecs_tasks_security_group_id]
