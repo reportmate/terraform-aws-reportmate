@@ -33,8 +33,8 @@ variable "db_connection_string_secret_arn" {
   type        = string
 }
 
-variable "private_subnet_ids" {
-  description = "Private subnet IDs for task networking"
+variable "subnet_ids" {
+  description = "Subnet IDs for task networking. On the demo profile these are public subnets (assign_public_ip = true)."
   type        = list(string)
 }
 

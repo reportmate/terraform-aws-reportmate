@@ -88,10 +88,12 @@ resource "aws_scheduler_schedule" "maintenance" {
       launch_type         = "FARGATE"
       task_count          = 1
 
+      # Demo profile: public subnet + public IP so the nightly job can pull
+      # from ECR and reach CloudWatch / Secrets Manager without a NAT gateway.
       network_configuration {
-        subnets          = var.private_subnet_ids
+        subnets          = var.subnet_ids
         security_groups  = var.security_group_ids
-        assign_public_ip = false
+        assign_public_ip = true
       }
     }
   }

@@ -151,7 +151,7 @@ module "maintenance" {
 
   db_connection_string_secret_arn = module.secrets.db_connection_string_secret_arn
 
-  private_subnet_ids = module.networking.private_subnet_ids
+  subnet_ids         = module.networking.public_subnet_ids
   security_group_ids = [module.containers.ecs_tasks_security_group_id]
 
   log_group_name       = module.monitoring.maintenance_log_group_name
