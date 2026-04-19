@@ -133,7 +133,19 @@ variable "auth_logout_urls" {
 variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number
-  default     = 30
+  default     = 7
+}
+
+variable "alert_email" {
+  description = "Email address subscribed to the cost budget SNS topic."
+  type        = string
+  default     = "rchristiansen@ecuad.ca"
+}
+
+variable "daily_budget_usd" {
+  description = "Daily cost budget (USD). Alert fires at ACTUAL > limit and FORECAST > limit."
+  type        = number
+  default     = 5
 }
 
 # --- Maintenance ---
@@ -144,10 +156,10 @@ variable "event_retention_days" {
   default     = 30
 }
 
-# --- Demo Loop ---
+# --- Public URL ---
 
-variable "demo_api_url" {
-  description = "Public API URL for the demo loop to submit device payloads"
+variable "public_api_url" {
+  description = "Public URL users hit in the browser (frontend API_BASE_URL). DNS for this domain must eventually resolve to the ALB."
   type        = string
   default     = "https://demo.reportmate.app"
 }

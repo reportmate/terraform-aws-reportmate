@@ -88,10 +88,13 @@ resource "aws_ecs_service" "demo_loop" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # Demo profile: public subnet + public IP so the task can reach the ALB and
+  # AWS services (ECR, CloudWatch, Secrets Manager) directly through the IGW
+  # without a NAT gateway.
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.subnet_ids
     security_groups  = var.security_group_ids
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   # Allow rolling updates with zero downtime

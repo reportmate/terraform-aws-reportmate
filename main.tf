@@ -16,6 +16,8 @@ module "monitoring" {
   project_name       = var.project_name
   environment        = var.environment
   log_retention_days = var.log_retention_days
+  alert_email        = var.alert_email
+  daily_budget_usd   = var.daily_budget_usd
 }
 
 # --- Database ---
@@ -120,6 +122,8 @@ module "containers" {
   frontend_log_group_name = module.monitoring.frontend_log_group_name
 
   database_security_group_id = module.database.security_group_id
+
+  public_api_url = var.public_api_url
 }
 
 # --- Messaging ---
@@ -168,9 +172,12 @@ module "demo_loop" {
   ecs_task_role_arn      = module.identity.ecs_task_role_arn
 
   client_passphrase_secret_arn = module.secrets.client_passphrase_secret_arn
-  api_url                      = var.demo_api_url
 
-  private_subnet_ids = module.networking.private_subnet_ids
+  # Demo-loop targets the ALB directly (intra-region, intra-VPC). Avoids the
+  # cost of hair-pinning through any CDN/edge in front of demo.reportmate.app.
+  api_url = module.containers.alb_base_url
+
+  subnet_ids         = module.networking.public_subnet_ids
   security_group_ids = [module.containers.ecs_tasks_security_group_id]
 
   log_group_name = module.monitoring.demo_loop_log_group_name

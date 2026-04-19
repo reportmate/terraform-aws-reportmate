@@ -38,8 +38,8 @@ variable "api_url" {
   type        = string
 }
 
-variable "private_subnet_ids" {
-  description = "Private subnet IDs for task networking"
+variable "subnet_ids" {
+  description = "Subnet IDs for task networking. On the demo profile these are public subnets (assign_public_ip = true)."
   type        = list(string)
 }
 
@@ -56,23 +56,23 @@ variable "log_group_name" {
 variable "batch_size" {
   description = "Number of devices per batch refresh"
   type        = number
-  default     = 15
+  default     = 5
 }
 
 variable "batch_interval" {
   description = "Seconds between batch refreshes"
   type        = number
-  default     = 120
+  default     = 600
 }
 
 variable "full_interval" {
   description = "Seconds between full fleet refreshes"
   type        = number
-  default     = 1800
+  default     = 7200
 }
 
 variable "device_count" {
   description = "Total number of demo devices"
   type        = number
-  default     = 300
+  default     = 50
 }

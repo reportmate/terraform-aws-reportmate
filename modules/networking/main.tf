@@ -17,8 +17,7 @@ resource "aws_vpc" "main" {
   tags = { Name = "${local.name_prefix}-vpc" }
 }
 
-# --- Public Subnets (ALB, NAT Gateway) ---
-
+# Public subnets host the ALB and (on the demo profile) the Fargate tasks.
 resource "aws_subnet" "public" {
   count                   = length(local.azs)
   vpc_id                  = aws_vpc.main.id
@@ -29,8 +28,8 @@ resource "aws_subnet" "public" {
   tags = { Name = "${local.name_prefix}-public-${local.azs[count.index]}" }
 }
 
-# --- Private Subnets (ECS tasks, RDS) ---
-
+# Private subnets host RDS. RDS does not need internet access, so there is no
+# NAT gateway — this keeps the demo profile at near-zero networking cost.
 resource "aws_subnet" "private" {
   count             = length(local.azs)
   vpc_id            = aws_vpc.main.id
@@ -40,32 +39,11 @@ resource "aws_subnet" "private" {
   tags = { Name = "${local.name_prefix}-private-${local.azs[count.index]}" }
 }
 
-# --- Internet Gateway ---
-
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = { Name = "${local.name_prefix}-igw" }
 }
-
-# --- NAT Gateway (single, cost-conscious) ---
-
-resource "aws_eip" "nat" {
-  domain = "vpc"
-
-  tags = { Name = "${local.name_prefix}-nat-eip" }
-}
-
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-
-  tags = { Name = "${local.name_prefix}-nat" }
-
-  depends_on = [aws_internet_gateway.main]
-}
-
-# --- Route Tables ---
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
@@ -84,13 +62,11 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# Private route table has no default route — RDS stays isolated from the
+# internet by design. Intra-VPC traffic (ECS tasks → RDS) still works via the
+# implicit local route.
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
-  }
 
   tags = { Name = "${local.name_prefix}-private-rt" }
 }

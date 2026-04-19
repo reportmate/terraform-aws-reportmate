@@ -33,6 +33,11 @@ output "api_url" {
   value       = "http://${aws_lb.main.dns_name}/api"
 }
 
+output "alb_base_url" {
+  description = "Base URL for in-VPC callers (demo-loop, maintenance)"
+  value       = "http://${aws_lb.main.dns_name}"
+}
+
 output "frontend_url" {
   description = "Frontend URL via ALB"
   value       = "http://${aws_lb.main.dns_name}"

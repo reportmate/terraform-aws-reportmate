@@ -68,9 +68,11 @@ resource "aws_ecr_lifecycle_policy" "frontend" {
 resource "aws_ecs_cluster" "main" {
   name = "${local.name_prefix}-cluster"
 
+  # Container Insights disabled on the demo profile — CloudWatch custom-metric
+  # pricing outweighs its value at this scale.
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = "disabled"
   }
 
   tags = { Name = "${local.name_prefix}-cluster" }
@@ -315,7 +317,7 @@ resource "aws_ecs_task_definition" "frontend" {
       { name = "ENVIRONMENT", value = var.environment },
       { name = "PORT", value = "3000" },
       { name = "NEXT_PUBLIC_DEMO_MODE", value = "true" },
-      { name = "API_BASE_URL", value = "https://demo.reportmate.app" },
+      { name = "API_BASE_URL", value = var.public_api_url },
     ]
 
     secrets = [
@@ -345,10 +347,12 @@ resource "aws_ecs_service" "api" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # Demo profile: tasks run in public subnets with public IPs. There is no NAT
+  # gateway, so tasks reach ECR / Secrets Manager / CloudWatch via the IGW.
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -370,10 +374,12 @@ resource "aws_ecs_service" "frontend" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # Demo profile: tasks run in public subnets with public IPs. There is no NAT
+  # gateway, so tasks reach ECR / Secrets Manager / CloudWatch via the IGW.
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -388,54 +394,6 @@ resource "aws_ecs_service" "frontend" {
   tags = { Name = "${local.name_prefix}-frontend-service" }
 }
 
-# --- Auto Scaling ---
-
-resource "aws_appautoscaling_target" "api" {
-  max_capacity       = 5
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.api.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "api_cpu" {
-  name               = "${local.name_prefix}-api-cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.api.resource_id
-  scalable_dimension = aws_appautoscaling_target.api.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.api.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    target_value       = 70.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
-  }
-}
-
-resource "aws_appautoscaling_target" "frontend" {
-  max_capacity       = 5
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.frontend.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "frontend_cpu" {
-  name               = "${local.name_prefix}-frontend-cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.frontend.resource_id
-  scalable_dimension = aws_appautoscaling_target.frontend.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.frontend.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    target_value       = 70.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
-  }
-}
+# Demo profile runs a single task per service; auto-scaling is intentionally
+# omitted. Production branch should re-introduce aws_appautoscaling_target /
+# aws_appautoscaling_policy resources keyed off CPU or request count.
