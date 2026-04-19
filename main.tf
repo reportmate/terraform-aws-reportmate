@@ -123,7 +123,8 @@ module "containers" {
 
   database_security_group_id = module.database.security_group_id
 
-  public_api_url = var.public_api_url
+  public_api_url      = var.public_api_url
+  acm_certificate_arn = var.acm_certificate_arn
 }
 
 # --- Messaging ---

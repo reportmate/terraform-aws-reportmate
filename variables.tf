@@ -163,3 +163,9 @@ variable "public_api_url" {
   type        = string
   default     = "https://demo.reportmate.app"
 }
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for the ALB HTTPS listener."
+  type        = string
+  default     = ""
+}

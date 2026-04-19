@@ -114,3 +114,9 @@ variable "public_api_url" {
   description = "Public URL the browser uses to reach the API (e.g. https://demo.reportmate.app). Wired into the frontend as API_BASE_URL."
   type        = string
 }
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for the 443 listener. Empty = HTTP on 443 (dev only)."
+  type        = string
+  default     = ""
+}
