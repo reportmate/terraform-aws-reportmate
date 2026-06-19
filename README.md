@@ -62,9 +62,9 @@ After `terraform apply`, push images to ECR:
 # Authenticate with ECR
 aws ecr get-login-password --region ca-central-1 | docker login --username AWS --password-stdin <account>.dkr.ecr.ca-central-1.amazonaws.com
 
-# Build and push API
-docker build -t reportmate-api ./infrastructure/azure/modules/api/
-docker tag reportmate-api:latest <account>.dkr.ecr.ca-central-1.amazonaws.com/reportmate-api:latest
+# Mirror the prebuilt API image from GHCR to ECR (the reportmate-api repo CI builds it)
+docker pull --platform linux/amd64 ghcr.io/reportmate/reportmate-api:latest
+docker tag ghcr.io/reportmate/reportmate-api:latest <account>.dkr.ecr.ca-central-1.amazonaws.com/reportmate-api:latest
 docker push <account>.dkr.ecr.ca-central-1.amazonaws.com/reportmate-api:latest
 
 # Update ECS service
