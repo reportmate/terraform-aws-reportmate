@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Deploy the ReportMate API container to ECS Fargate via ECR.
-# Usage: ./scripts/deploy-api.sh [--force-build]
+# The API image is built once by the reportmate-api repo CI and published to
+# GHCR; this script mirrors that prebuilt image into ECR (no local build).
+# Usage: ./scripts/deploy-api.sh [tag]   (tag defaults to "latest"; use a sha- tag for prod)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,18 +21,16 @@ fi
 echo "==> Authenticating to ECR ($REGION)"
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
 
-TAG="$(git -C "$ROOT_DIR/../azure/modules/api" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)"
+GHCR_IMAGE="ghcr.io/reportmate/reportmate-api"
+TAG="${1:-latest}"
 IMAGE="$ECR_URL:$TAG"
 
-echo "==> Building API image: $IMAGE"
-docker build \
-  --platform linux/amd64 \
-  -t "$IMAGE" \
-  -t "$ECR_URL:latest" \
-  -f "$ROOT_DIR/../azure/modules/api/Dockerfile" \
-  "$ROOT_DIR/../azure/modules/api"
+echo "==> Pulling prebuilt API image from GHCR: $GHCR_IMAGE:$TAG"
+docker pull --platform linux/amd64 "$GHCR_IMAGE:$TAG"
 
-echo "==> Pushing to ECR"
+echo "==> Mirroring to ECR: $IMAGE"
+docker tag "$GHCR_IMAGE:$TAG" "$IMAGE"
+docker tag "$GHCR_IMAGE:$TAG" "$ECR_URL:latest"
 docker push "$IMAGE"
 docker push "$ECR_URL:latest"
 

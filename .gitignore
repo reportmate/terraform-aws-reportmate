@@ -247,3 +247,5 @@ database-*.dump
 bootstrap/terraform.tfstate
 bootstrap/terraform.tfstate.*
 bootstrap/.terraform/
+
+/.worktrees/

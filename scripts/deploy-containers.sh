@@ -18,18 +18,21 @@ CLUSTER_NAME="reportmate-prod-cluster"
 TAG="$(date +%Y%m%d%H%M%S)"
 
 deploy_api() {
-  local ECR_URL
+  # API image is built by the reportmate-api repo CI and published to GHCR;
+  # mirror that prebuilt image into ECR (no local build). Override the GHCR
+  # tag to pull via API_GHCR_TAG (defaults to "latest"; use a sha- tag for prod).
+  local ECR_URL GHCR_IMAGE GHCR_TAG
   ECR_URL=$(cd "$ROOT_DIR" && terraform output -raw ecr_api_repository_url)
+  GHCR_IMAGE="ghcr.io/reportmate/reportmate-api"
+  GHCR_TAG="${API_GHCR_TAG:-latest}"
   local IMAGE="$ECR_URL:$TAG"
 
-  echo "==> Building API image: $IMAGE"
-  docker build \
-    --platform linux/amd64 \
-    -t "$IMAGE" -t "$ECR_URL:latest" \
-    -f "$MONO_ROOT/infrastructure/azure/modules/api/Dockerfile" \
-    "$MONO_ROOT/infrastructure/azure/modules/api"
+  echo "==> Pulling prebuilt API image from GHCR: $GHCR_IMAGE:$GHCR_TAG"
+  docker pull --platform linux/amd64 "$GHCR_IMAGE:$GHCR_TAG"
 
-  echo "==> Pushing API image"
+  echo "==> Mirroring to ECR: $IMAGE"
+  docker tag "$GHCR_IMAGE:$GHCR_TAG" "$IMAGE"
+  docker tag "$GHCR_IMAGE:$GHCR_TAG" "$ECR_URL:latest"
   docker push "$IMAGE"
   docker push "$ECR_URL:latest"
 
