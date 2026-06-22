@@ -35,6 +35,11 @@ output "nextauth_secret" {
   sensitive   = true
 }
 
+output "nextauth_secret_arn" {
+  description = "ARN of the NextAuth session secret (for injection into the frontend task)"
+  value       = aws_secretsmanager_secret.nextauth_secret.arn
+}
+
 output "secret_arns" {
   description = "All auth-related secret ARNs for IAM policy"
   value = [
