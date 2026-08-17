@@ -284,15 +284,17 @@ resource "aws_ecs_task_definition" "api" {
       }
     }
 
-    # startPeriod = 60 absorbs slow ECR pulls and DB warm-up during cold starts.
-    # The previous 15s threshold caused crash-loop cascades when image pulls
-    # were slowed by a saturated NAT gateway.
+    # The health check hits /api/v1/health, which opens a DB connection. Under
+    # DB memory pressure / write contention a fresh connection can exceed a 5s
+    # timeout, failing the check and crash-looping the task. Generous thresholds
+    # (15s timeout, 5 retries, 90s start grace) let a cold-starting task ride
+    # out transient DB slowness instead of being killed.
     healthCheck = {
       command     = ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
       interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 60
+      timeout     = 15
+      retries     = 5
+      startPeriod = 90
     }
   }])
 
@@ -322,10 +324,15 @@ resource "aws_ecs_task_definition" "frontend" {
       { name = "PORT", value = "3000" },
       { name = "NEXT_PUBLIC_DEMO_MODE", value = tostring(var.demo_mode) },
       { name = "API_BASE_URL", value = var.public_api_url },
+      # NextAuth requires its own canonical URL in production.
+      { name = "NEXTAUTH_URL", value = var.public_api_url },
     ]
 
     secrets = [
       { name = "API_INTERNAL_SECRET", valueFrom = var.api_internal_secret_arn },
+      # Without NEXTAUTH_SECRET, NextAuth raises MissingSecretError (NO_SECRET)
+      # and every /api/auth/session call 500s, gating the whole dashboard.
+      { name = "NEXTAUTH_SECRET", valueFrom = var.nextauth_secret_arn },
     ]
 
     logConfiguration = {

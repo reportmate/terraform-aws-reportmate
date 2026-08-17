@@ -123,6 +123,7 @@ module "containers" {
   db_connection_string_secret_arn = module.secrets.db_connection_string_secret_arn
   api_internal_secret_arn         = module.secrets.api_internal_secret_arn
   client_passphrase_secret_arn    = module.secrets.client_passphrase_secret_arn
+  nextauth_secret_arn             = module.auth.nextauth_secret_arn
 
   api_log_group_name      = module.monitoring.api_log_group_name
   frontend_log_group_name = module.monitoring.frontend_log_group_name
