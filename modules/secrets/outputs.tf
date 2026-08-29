@@ -13,6 +13,11 @@ output "api_internal_secret_arn" {
   value       = aws_secretsmanager_secret.api_internal_secret.arn
 }
 
+output "kiosk_tokens_secret_arn" {
+  description = "ARN of the kiosk viewer tokens secret"
+  value       = aws_secretsmanager_secret.kiosk_tokens.arn
+}
+
 output "client_passphrase_secret_arn" {
   description = "ARN of the client passphrase secret"
   value       = aws_secretsmanager_secret.client_passphrase.arn
@@ -24,6 +29,7 @@ output "all_secret_arns" {
     aws_secretsmanager_secret.db_password.arn,
     aws_secretsmanager_secret.db_connection_string.arn,
     aws_secretsmanager_secret.api_internal_secret.arn,
+    aws_secretsmanager_secret.kiosk_tokens.arn,
     aws_secretsmanager_secret.client_passphrase.arn,
   ]
 }

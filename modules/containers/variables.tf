@@ -88,6 +88,11 @@ variable "api_internal_secret_arn" {
   type        = string
 }
 
+variable "kiosk_tokens_secret_arn" {
+  description = "ARN of the kiosk viewer tokens secret"
+  type        = string
+}
+
 variable "nextauth_secret_arn" {
   description = "ARN of the NextAuth session secret (injected into the frontend container)"
   type        = string

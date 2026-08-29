@@ -41,6 +41,19 @@ resource "aws_secretsmanager_secret_version" "api_internal_secret" {
   secret_string = var.api_internal_secret
 }
 
+resource "aws_secretsmanager_secret" "kiosk_tokens" {
+  name                    = "${local.name_prefix}/kiosk-tokens"
+  description             = "Kiosk viewer tokens for read-only display sessions"
+  recovery_window_in_days = 7
+
+  tags = { Name = "${local.name_prefix}-kiosk-tokens" }
+}
+
+resource "aws_secretsmanager_secret_version" "kiosk_tokens" {
+  secret_id     = aws_secretsmanager_secret.kiosk_tokens.id
+  secret_string = var.kiosk_tokens
+}
+
 resource "aws_secretsmanager_secret" "client_passphrase" {
   name                    = "${local.name_prefix}/client-passphrase"
   description             = "Client device authentication passphrase"

@@ -134,6 +134,13 @@ variable "api_internal_secret" {
   sensitive   = true
 }
 
+variable "kiosk_tokens" {
+  description = "Comma-separated kiosk viewer tokens (label:token) that /kiosk exchanges for a read-only session. Empty disables kiosk sessions."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "client_passphrase" {
   description = "Passphrase for client device authentication"
   type        = string
