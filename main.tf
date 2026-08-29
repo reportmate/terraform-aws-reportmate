@@ -54,6 +54,7 @@ module "secrets" {
   db_connection_string = module.database.connection_string
   api_internal_secret  = var.api_internal_secret
   client_passphrase    = var.client_passphrase
+  kiosk_tokens         = var.kiosk_tokens
 }
 
 # --- Storage ---
@@ -123,6 +124,7 @@ module "containers" {
   db_connection_string_secret_arn = module.secrets.db_connection_string_secret_arn
   api_internal_secret_arn         = module.secrets.api_internal_secret_arn
   client_passphrase_secret_arn    = module.secrets.client_passphrase_secret_arn
+  kiosk_tokens_secret_arn         = module.secrets.kiosk_tokens_secret_arn
   nextauth_secret_arn             = module.auth.nextauth_secret_arn
 
   api_log_group_name      = module.monitoring.api_log_group_name

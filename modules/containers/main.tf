@@ -330,6 +330,7 @@ resource "aws_ecs_task_definition" "frontend" {
 
     secrets = [
       { name = "API_INTERNAL_SECRET", valueFrom = var.api_internal_secret_arn },
+      { name = "KIOSK_TOKENS", valueFrom = var.kiosk_tokens_secret_arn },
       # Without NEXTAUTH_SECRET, NextAuth raises MissingSecretError (NO_SECRET)
       # and every /api/auth/session call 500s, gating the whole dashboard.
       { name = "NEXTAUTH_SECRET", valueFrom = var.nextauth_secret_arn },
