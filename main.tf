@@ -86,11 +86,6 @@ module "identity" {
   environment  = var.environment
   secret_arns  = concat(module.secrets.all_secret_arns, module.auth.secret_arns)
 
-  ecr_repository_arns = [
-    module.containers.ecr_api_repository_url,
-    module.containers.ecr_frontend_repository_url,
-  ]
-
   log_group_arns = [
     "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/ecs/${var.project_name}-${var.environment}/*",
   ]

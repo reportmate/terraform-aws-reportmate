@@ -14,12 +14,6 @@ variable "secret_arns" {
   default     = []
 }
 
-variable "ecr_repository_arns" {
-  description = "ARNs of ECR repositories the ECS tasks need to pull from"
-  type        = list(string)
-  default     = []
-}
-
 variable "log_group_arns" {
   description = "ARNs of CloudWatch log groups"
   type        = list(string)
