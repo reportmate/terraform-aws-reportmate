@@ -7,10 +7,10 @@ name: Terraform Validate
 on:
   push:
     branches: [main]
-    paths: ['**.tf', '.terraform.lock.hcl', '.github/workflows/terraform.yml']
+    paths: ['**.tf', '**/.terraform.lock.hcl', '.github/workflows/terraform.yml']
   pull_request:
     branches: [main]
-    paths: ['**.tf', '.terraform.lock.hcl', '.github/workflows/terraform.yml']
+    paths: ['**.tf', '**/.terraform.lock.hcl', '.github/workflows/terraform.yml']
 
 permissions:
   contents: read
