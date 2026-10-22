@@ -2,6 +2,8 @@
 
 Terraform modules for deploying ReportMate on AWS. Feature-parity with the Azure deployment.
 
+Development guide: [wiki](wiki/README.md)
+
 ## Architecture
 
 - **Compute**: ECS Fargate (API + Frontend services)
