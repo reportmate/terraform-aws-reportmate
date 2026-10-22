@@ -1,6 +1,6 @@
 # ReportMate AWS infrastructure wiki
 
-This repository holds the Terraform that deploys ReportMate on AWS. It provisions the network, PostgreSQL database, container services, secrets, authentication, messaging, scheduled maintenance and monitoring that the ReportMate API and web dashboard run on, as the AWS counterpart to the Azure deployment.
+This repository is a sample Terraform configuration for running ReportMate on AWS, meant to be copied and adapted rather than deployed as is. It provisions the network, PostgreSQL database, container services, secrets, authentication, messaging, scheduled maintenance and monitoring that the ReportMate API and web dashboard run on, as the AWS counterpart to the Azure deployment.
 
 ## Read first
 
@@ -40,7 +40,7 @@ terraform fmt -check -recursive && terraform validate && terraform plan
 
 The scripts in [scripts/](../scripts) read Terraform outputs to deploy images: [deploy-api.sh](../scripts/deploy-api.sh) mirrors a GHCR API image into ECR and restarts the service, [deploy-containers.sh](../scripts/deploy-containers.sh) and [deploy-demo-loop.sh](../scripts/deploy-demo-loop.sh) also build images from a parent source checkout, and [status.sh](../scripts/status.sh) summarizes outputs and ECS service state.
 
-The [Terraform workflow](../.github/workflows/terraform.yml) runs format, validate and plan steps, but its path filter and working directory point at `infrastructure/aws`, a layout this repository does not have, so it does not currently run on changes here. Local checks are the verification for now.
+The [Terraform workflow](../.github/workflows/terraform.yml) runs on pull requests and pushes to `main` that touch Terraform files or the workflow itself. It runs `terraform fmt -check -recursive`, then `terraform init -backend=false` and `terraform validate` in the root module and in `bootstrap/`. It holds no cloud credentials and never plans or applies, so a plan against your own environment stays a local step in your adapted copy.
 
 ## Documentation ownership
 
