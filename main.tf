@@ -253,6 +253,10 @@ module "maintenance" {
   ecs_task_role_arn      = module.identity.ecs_task_role_arn
 
   db_connection_string_secret_arn = module.secrets.db_connection_string_secret_arn
+  db_host                         = module.database.address
+  db_name                         = module.database.database_name
+  db_username                     = var.db_username
+  db_password_secret_arn          = module.secrets.db_password_secret_arn
 
   private_subnet_ids = local.task_subnet_ids
   assign_public_ip   = var.tasks_in_public_subnets
