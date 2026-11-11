@@ -56,6 +56,63 @@ variable "enable_multi_az_nat" {
   default     = false
 }
 
+variable "enable_s3_gateway_endpoint" {
+  description = "Create the free S3 gateway endpoint on the deployment's private route tables. Turn off where the VPC owner manages S3 endpoints centrally."
+  type        = bool
+  default     = true
+}
+
+# --- Existing VPC (opt-in) ---
+#
+# Leave existing_vpc_id null to create a dedicated VPC (vpc_cidr,
+# enable_multi_az_nat). Set it to deploy into a VPC you already run: the module
+# then adds its own subnets and route tables there and changes nothing that
+# already exists. vpc_cidr and enable_multi_az_nat are ignored in that mode.
+
+variable "existing_vpc_id" {
+  description = "ID of an existing VPC to deploy into (for example vpc-0123456789abcdef0). Null creates a new VPC."
+  type        = string
+  default     = null
+}
+
+variable "existing_nat_gateway_id" {
+  description = "Existing NAT gateway (nat-...) that the deployment's private route table sends 0.0.0.0/0 to. Required with existing_vpc_id."
+  type        = string
+  default     = null
+}
+
+variable "private_subnet_cidrs" {
+  description = "Existing-VPC mode: availability zone => CIDR for the new private subnets (ECS tasks, RDS). At least two AZs; must not overlap existing subnets."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = length(var.private_subnet_cidrs) == 0 || length(var.private_subnet_cidrs) >= 2
+    error_message = "private_subnet_cidrs must map at least two availability zones (RDS and the ALB need two)."
+  }
+
+  validation {
+    condition     = alltrue([for cidr in values(var.private_subnet_cidrs) : can(cidrhost(cidr, 0))])
+    error_message = "Every private_subnet_cidrs value must be a valid IPv4 CIDR."
+  }
+}
+
+variable "public_subnet_cidrs" {
+  description = "Existing-VPC mode: availability zone => CIDR for the new public subnets (ALB). At least two AZs, the same ones as private_subnet_cidrs."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = length(var.public_subnet_cidrs) == 0 || length(var.public_subnet_cidrs) >= 2
+    error_message = "public_subnet_cidrs must map at least two availability zones (the ALB needs two)."
+  }
+
+  validation {
+    condition     = alltrue([for cidr in values(var.public_subnet_cidrs) : can(cidrhost(cidr, 0))])
+    error_message = "Every public_subnet_cidrs value must be a valid IPv4 CIDR."
+  }
+}
+
 # --- Database ---
 
 variable "db_username" {
@@ -80,6 +137,29 @@ variable "db_allocated_storage" {
   description = "RDS allocated storage in GB"
   type        = number
   default     = 32
+}
+
+variable "db_storage_type" {
+  description = "RDS storage type (gp3, gp2, io1, io2)"
+  type        = string
+  default     = "gp3"
+}
+
+variable "db_max_allocated_storage" {
+  description = "Upper limit in GB for RDS storage autoscaling. Null leaves autoscaling off."
+  type        = number
+  default     = null
+}
+
+variable "db_backup_retention_days" {
+  description = "Days of automated RDS backups to keep (0-35)"
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.db_backup_retention_days >= 0 && var.db_backup_retention_days <= 35
+    error_message = "db_backup_retention_days must be between 0 and 35."
+  }
 }
 
 variable "db_multi_az" {
@@ -126,6 +206,65 @@ variable "frontend_memory" {
   default     = 512
 }
 
+variable "api_min_count" {
+  description = "Minimum (and initial desired) number of API tasks"
+  type        = number
+  default     = 1
+}
+
+variable "api_max_count" {
+  description = "Maximum number of API tasks for CPU autoscaling"
+  type        = number
+  default     = 5
+}
+
+variable "frontend_min_count" {
+  description = "Minimum (and initial desired) number of frontend tasks"
+  type        = number
+  default     = 1
+}
+
+variable "frontend_max_count" {
+  description = "Maximum number of frontend tasks for CPU autoscaling"
+  type        = number
+  default     = 5
+}
+
+variable "cpu_architecture" {
+  description = "Fargate CPU architecture for the API and frontend tasks. ARM64 needs arm64 images in ECR."
+  type        = string
+  default     = "X86_64"
+
+  validation {
+    condition     = contains(["X86_64", "ARM64"], var.cpu_architecture)
+    error_message = "cpu_architecture must be X86_64 or ARM64."
+  }
+}
+
+variable "api_extra_environment" {
+  description = "Extra API environment variables (name => value). A name here replaces the module's own value for it."
+  type        = map(string)
+  default     = {}
+}
+
+variable "frontend_extra_environment" {
+  description = "Extra frontend environment variables (name => value). A name here replaces the module's own value for it."
+  type        = map(string)
+  default     = {}
+}
+
+variable "api_extra_secrets" {
+  description = "Extra API secrets (environment variable name => Secrets Manager secret ARN). The ECS execution role is granted read on each."
+  type        = map(string)
+  default     = {}
+}
+
+variable "frontend_extra_secrets" {
+  description = "Extra frontend secrets (environment variable name => Secrets Manager secret ARN). The ECS execution role is granted read on each."
+  type        = map(string)
+  default     = {}
+}
+
 # --- Auth / Secrets ---
 
 variable "api_internal_secret" {
@@ -145,6 +284,87 @@ variable "client_passphrase" {
   description = "Passphrase for client device authentication"
   type        = string
   sensitive   = true
+}
+
+variable "enable_cognito" {
+  description = "Create a Cognito user pool for dashboard sign-in. Set false to sign in with Microsoft Entra ID (azure_ad_* inputs) instead."
+  type        = bool
+  default     = true
+}
+
+variable "public_url" {
+  description = "Public URL users open the dashboard at (for example https://reportmate.example.com). Sets NEXTAUTH_URL, NEXTAUTH_URL_INTERNAL, NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_URL and HOST on the frontend. Empty keeps NEXTAUTH_URL = public_api_url."
+  type        = string
+  default     = ""
+}
+
+variable "azure_ad_client_id" {
+  description = "Entra ID app registration client ID. Used when enable_cognito = false."
+  type        = string
+  default     = ""
+}
+
+variable "azure_ad_tenant_id" {
+  description = "Entra ID tenant ID. Used when enable_cognito = false."
+  type        = string
+  default     = ""
+}
+
+variable "azure_ad_client_secret" {
+  description = "Entra ID app registration client secret, stored in Secrets Manager. Used when enable_cognito = false."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "nextauth_secret" {
+  description = "NextAuth session secret, stored in Secrets Manager, when enable_cognito = false. Empty generates a random one."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "allowed_domains" {
+  description = "Email domains allowed to sign in (ALLOWED_DOMAINS on both containers), for example [\"example.com\"]. Empty sets nothing."
+  type        = list(string)
+  default     = []
+}
+
+variable "api_oidc_enabled" {
+  description = "Let the API accept OIDC bearer tokens (ENABLE_OIDC_AUTH) from api_oidc_issuers for api_oidc_audiences."
+  type        = bool
+  default     = false
+}
+
+variable "api_oidc_issuers" {
+  description = "Trusted OIDC issuers for API bearer tokens (OIDC_ISSUERS), for example [\"https://login.microsoftonline.com/<tenant-id>/v2.0\"]."
+  type        = list(string)
+  default     = []
+}
+
+variable "api_oidc_audiences" {
+  description = "Accepted audiences for API bearer tokens (OIDC_AUDIENCE), for example [\"api://<client-id>\"]."
+  type        = list(string)
+  default     = []
+}
+
+variable "db_pool_min" {
+  description = "API database pool minimum (DB_POOL_MIN). Null leaves the application default."
+  type        = number
+  default     = null
+}
+
+variable "db_pool_max" {
+  description = "API database pool maximum (DB_POOL_MAX). Null leaves the application default."
+  type        = number
+  default     = null
+}
+
+variable "applicationinsights_connection_string" {
+  description = "Application Insights connection string for API telemetry, stored in Secrets Manager. Empty skips it."
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "auth_callback_urls" {
@@ -201,9 +421,46 @@ variable "public_api_url" {
 }
 
 variable "acm_certificate_arn" {
-  description = "ACM certificate ARN for the ALB HTTPS listener. Empty = HTTP-only (dev only)."
+  description = "ACM certificate ARN for the ALB HTTPS listener. Empty = HTTP-only (dev only). Replaced by the issued origin certificate once wait_for_certificate_validation = true."
   type        = string
   default     = ""
+}
+
+variable "create_origin_certificate" {
+  description = "Request a DNS-validated ACM certificate for origin_domain_name. The validation record is output (origin_certificate_validation_records) for you to create in your own DNS provider."
+  type        = bool
+  default     = false
+}
+
+variable "origin_domain_name" {
+  description = "Hostname for the origin certificate, for example origin.reportmate.example.com. CNAME it to the alb_dns_name output."
+  type        = string
+  default     = ""
+}
+
+variable "wait_for_certificate_validation" {
+  description = "Wait for ACM to issue the origin certificate and put it on the HTTPS listener. Set true on the apply after the validation CNAME exists; until then the listener uses acm_certificate_arn."
+  type        = bool
+  default     = false
+}
+
+# --- Edge restriction (opt-in) ---
+
+variable "cdn_origin_restriction" {
+  description = <<-EOT
+    Restrict the ALB to an external CDN. When set, the ALB security group allows
+    only HTTPS from prefix_list_id (a managed prefix list of the CDN's backend
+    ranges), and the HTTPS listener returns 403 unless the request carries
+    header_name: header_value, which the CDN adds on its way to the origin.
+    Null (default) leaves the ALB open on 80 and 443.
+  EOT
+  type = object({
+    prefix_list_id = string
+    header_name    = string
+    header_value   = string
+  })
+  default   = null
+  sensitive = true
 }
 
 # --- Demo Loop ---

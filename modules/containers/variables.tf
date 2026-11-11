@@ -136,3 +136,150 @@ variable "acm_certificate_arn" {
   type        = string
   default     = ""
 }
+
+# --- Scaling and platform ---
+
+variable "api_min_count" {
+  description = "Minimum (and initial desired) API task count"
+  type        = number
+  default     = 1
+}
+
+variable "api_max_count" {
+  description = "Maximum API task count for CPU autoscaling"
+  type        = number
+  default     = 5
+}
+
+variable "frontend_min_count" {
+  description = "Minimum (and initial desired) frontend task count"
+  type        = number
+  default     = 1
+}
+
+variable "frontend_max_count" {
+  description = "Maximum frontend task count for CPU autoscaling"
+  type        = number
+  default     = 5
+}
+
+variable "cpu_architecture" {
+  description = "Fargate CPU architecture for the API and frontend tasks: X86_64 or ARM64"
+  type        = string
+  default     = "X86_64"
+}
+
+# --- Sign-in ---
+
+variable "auth_provider" {
+  description = "Dashboard sign-in provider: cognito or azure-ad"
+  type        = string
+  default     = "cognito"
+}
+
+variable "public_url" {
+  description = "Public URL users open the dashboard at. Empty keeps NEXTAUTH_URL = public_api_url and sets no site-URL variables."
+  type        = string
+  default     = ""
+}
+
+variable "azure_ad_client_id" {
+  description = "Entra ID app registration client ID (auth_provider = azure-ad)"
+  type        = string
+  default     = ""
+}
+
+variable "azure_ad_tenant_id" {
+  description = "Entra ID tenant ID (auth_provider = azure-ad)"
+  type        = string
+  default     = ""
+}
+
+variable "azure_ad_client_secret_arn" {
+  description = "Secrets Manager ARN of the Entra ID client secret (auth_provider = azure-ad)"
+  type        = string
+  default     = null
+}
+
+variable "allowed_domains" {
+  description = "Email domains allowed to sign in; passed to both containers as ALLOWED_DOMAINS. Empty sets nothing."
+  type        = list(string)
+  default     = []
+}
+
+# --- API bearer-token auth and tuning ---
+
+variable "api_oidc_enabled" {
+  description = "Set ENABLE_OIDC_AUTH on the API so it accepts OIDC bearer tokens"
+  type        = bool
+  default     = false
+}
+
+variable "api_oidc_issuers" {
+  description = "Trusted OIDC issuers (OIDC_ISSUERS)"
+  type        = list(string)
+  default     = []
+}
+
+variable "api_oidc_audiences" {
+  description = "Accepted OIDC audiences (OIDC_AUDIENCE)"
+  type        = list(string)
+  default     = []
+}
+
+variable "db_pool_min" {
+  description = "API DB_POOL_MIN. Null leaves the application default."
+  type        = number
+  default     = null
+}
+
+variable "db_pool_max" {
+  description = "API DB_POOL_MAX. Null leaves the application default."
+  type        = number
+  default     = null
+}
+
+variable "applicationinsights_connection_string_secret_arn" {
+  description = "Secrets Manager ARN injected into the API as APPLICATIONINSIGHTS_CONNECTION_STRING. Null skips it."
+  type        = string
+  default     = null
+}
+
+# --- Extra container settings ---
+
+variable "api_extra_environment" {
+  description = "Extra API environment variables (name => value). A name here replaces the module's own value."
+  type        = map(string)
+  default     = {}
+}
+
+variable "frontend_extra_environment" {
+  description = "Extra frontend environment variables (name => value). A name here replaces the module's own value."
+  type        = map(string)
+  default     = {}
+}
+
+variable "api_extra_secrets" {
+  description = "Extra API secrets (environment variable name => Secrets Manager ARN)"
+  type        = map(string)
+  default     = {}
+}
+
+variable "frontend_extra_secrets" {
+  description = "Extra frontend secrets (environment variable name => Secrets Manager ARN)"
+  type        = map(string)
+  default     = {}
+}
+
+# --- Edge ---
+
+variable "cdn_origin_restriction" {
+  description = "Restrict the ALB to an external CDN: HTTPS only from prefix_list_id, and requests forwarded only when header_name carries header_value. Null leaves the ALB open."
+  type = object({
+    prefix_list_id = string
+    header_name    = string
+    header_value   = string
+  })
+  default   = null
+  sensitive = true
+}

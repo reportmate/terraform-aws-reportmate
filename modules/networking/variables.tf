@@ -43,3 +43,35 @@ variable "vpc_endpoint_security_group_id" {
   type        = string
   default     = ""
 }
+
+variable "enable_s3_gateway_endpoint" {
+  description = "Create the free S3 gateway endpoint on the module's private route tables."
+  type        = bool
+  default     = true
+}
+
+# --- Existing-VPC mode ---
+
+variable "existing_vpc_id" {
+  description = "Deploy into this existing VPC instead of creating one. Null (default) creates a new VPC."
+  type        = string
+  default     = null
+}
+
+variable "existing_nat_gateway_id" {
+  description = "NAT gateway in the existing VPC that the module's private route table sends 0.0.0.0/0 to. Required with existing_vpc_id."
+  type        = string
+  default     = null
+}
+
+variable "private_subnet_cidrs" {
+  description = "Existing-VPC mode: map of availability zone to CIDR for the module's private subnets (ECS tasks, RDS)."
+  type        = map(string)
+  default     = {}
+}
+
+variable "public_subnet_cidrs" {
+  description = "Existing-VPC mode: map of availability zone to CIDR for the module's public subnets (ALB)."
+  type        = map(string)
+  default     = {}
+}

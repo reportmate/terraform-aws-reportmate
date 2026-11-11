@@ -1,5 +1,104 @@
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
+
+  # True when the ALB only accepts traffic from an external CDN. The variable
+  # is sensitive (it carries the shared header value), so the on/off decision
+  # is unwrapped explicitly for use in count and dynamic blocks.
+  cdn_restricted = nonsensitive(var.cdn_origin_restriction != null)
+
+  entra_enabled = var.auth_provider == "azure-ad"
+  site_url      = var.public_url
+  site_hostname = var.public_url == "" ? "" : regex("^(?:[a-zA-Z][a-zA-Z0-9+.-]*://)?([^/:]+)", var.public_url)[0]
+
+  # --- API container environment ---
+
+  api_environment_base = concat(
+    [
+      { name = "ENVIRONMENT", value = var.environment },
+      { name = "PORT", value = "8000" },
+    ],
+    var.api_oidc_enabled ? [
+      { name = "ENABLE_OIDC_AUTH", value = "true" },
+      { name = "OIDC_ISSUERS", value = join(",", var.api_oidc_issuers) },
+      { name = "OIDC_AUDIENCE", value = join(",", var.api_oidc_audiences) },
+    ] : [],
+    length(var.allowed_domains) > 0 ? [{ name = "ALLOWED_DOMAINS", value = join(",", var.allowed_domains) }] : [],
+    var.db_pool_max == null ? [] : [{ name = "DB_POOL_MAX", value = tostring(var.db_pool_max) }],
+    var.db_pool_min == null ? [] : [{ name = "DB_POOL_MIN", value = tostring(var.db_pool_min) }],
+  )
+
+  api_environment = concat(
+    [for e in local.api_environment_base : e if !contains(keys(var.api_extra_environment), e.name)],
+    [for k, v in var.api_extra_environment : { name = k, value = v }],
+  )
+
+  api_secrets_base = concat(
+    [
+      { name = "DATABASE_URL", valueFrom = var.db_connection_string_secret_arn },
+      { name = "API_INTERNAL_SECRET", valueFrom = var.api_internal_secret_arn },
+      { name = "REPORTMATE_PASSPHRASE", valueFrom = var.client_passphrase_secret_arn },
+    ],
+    var.applicationinsights_connection_string_secret_arn == null ? [] : [
+      { name = "APPLICATIONINSIGHTS_CONNECTION_STRING", valueFrom = var.applicationinsights_connection_string_secret_arn },
+    ],
+  )
+
+  api_secrets = concat(
+    [for e in local.api_secrets_base : e if !contains(keys(var.api_extra_secrets), e.name)],
+    [for k, v in var.api_extra_secrets : { name = k, valueFrom = v }],
+  )
+
+  # --- Frontend container environment ---
+
+  frontend_environment_base = concat(
+    [
+      { name = "ENVIRONMENT", value = var.environment },
+      { name = "PORT", value = "3000" },
+      { name = "NEXT_PUBLIC_DEMO_MODE", value = tostring(var.demo_mode) },
+      { name = "API_BASE_URL", value = var.public_api_url },
+      # NextAuth requires its own canonical URL in production.
+      { name = "NEXTAUTH_URL", value = local.site_url == "" ? var.public_api_url : local.site_url },
+    ],
+    local.site_url == "" ? [] : [
+      { name = "NEXTAUTH_URL_INTERNAL", value = local.site_url },
+      { name = "NEXT_PUBLIC_SITE_URL", value = local.site_url },
+      { name = "NEXT_PUBLIC_URL", value = local.site_url },
+      { name = "HOST", value = local.site_hostname },
+    ],
+    local.entra_enabled ? [
+      { name = "AUTH_PROVIDERS", value = "azure-ad" },
+      { name = "DEFAULT_AUTH_PROVIDER", value = "azure-ad" },
+      { name = "AZURE_AD_CLIENT_ID", value = var.azure_ad_client_id },
+      { name = "AZURE_AD_TENANT_ID", value = var.azure_ad_tenant_id },
+      { name = "NEXT_PUBLIC_AZURE_AD_CLIENT_ID", value = var.azure_ad_client_id },
+      # Behind a CDN the Host header is the origin's, not the public one.
+      { name = "AUTH_TRUST_HOST", value = "true" },
+    ] : [],
+    length(var.allowed_domains) > 0 ? [{ name = "ALLOWED_DOMAINS", value = join(",", var.allowed_domains) }] : [],
+  )
+
+  frontend_environment = concat(
+    [for e in local.frontend_environment_base : e if !contains(keys(var.frontend_extra_environment), e.name)],
+    [for k, v in var.frontend_extra_environment : { name = k, value = v }],
+  )
+
+  frontend_secrets_base = concat(
+    [
+      { name = "API_INTERNAL_SECRET", valueFrom = var.api_internal_secret_arn },
+      { name = "KIOSK_TOKENS", valueFrom = var.kiosk_tokens_secret_arn },
+      # Without NEXTAUTH_SECRET, NextAuth raises MissingSecretError (NO_SECRET)
+      # and every /api/auth/session call 500s, gating the whole dashboard.
+      { name = "NEXTAUTH_SECRET", valueFrom = var.nextauth_secret_arn },
+    ],
+    local.entra_enabled ? [
+      { name = "AZURE_AD_CLIENT_SECRET", valueFrom = var.azure_ad_client_secret_arn },
+    ] : [],
+  )
+
+  frontend_secrets = concat(
+    [for e in local.frontend_secrets_base : e if !contains(keys(var.frontend_extra_secrets), e.name)],
+    [for k, v in var.frontend_extra_secrets : { name = k, valueFrom = v }],
+  )
 }
 
 # --- ECR Repositories ---
@@ -90,7 +189,10 @@ resource "aws_security_group" "alb" {
   }
 }
 
+# Open to the internet unless cdn_origin_restriction is set, in which case the
+# only ingress is HTTPS from the CDN's prefix list.
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
+  count             = local.cdn_restricted ? 0 : 1
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 80
@@ -99,13 +201,34 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   description       = "HTTP"
 }
 
+moved {
+  from = aws_vpc_security_group_ingress_rule.alb_http
+  to   = aws_vpc_security_group_ingress_rule.alb_http[0]
+}
+
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
+  count             = local.cdn_restricted ? 0 : 1
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 443
   to_port           = 443
   ip_protocol       = "tcp"
   description       = "HTTPS"
+}
+
+moved {
+  from = aws_vpc_security_group_ingress_rule.alb_https
+  to   = aws_vpc_security_group_ingress_rule.alb_https[0]
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_https_cdn" {
+  count             = local.cdn_restricted ? 1 : 0
+  security_group_id = aws_security_group.alb.id
+  prefix_list_id    = nonsensitive(var.cdn_origin_restriction.prefix_list_id)
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  description       = "HTTPS from the CDN origin prefix list"
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_out" {
@@ -181,9 +304,21 @@ resource "aws_lb_listener" "https" {
   ssl_policy        = var.acm_certificate_arn == "" ? null : "ELBSecurityPolicy-2016-08"
   certificate_arn   = var.acm_certificate_arn == "" ? null : var.acm_certificate_arn
 
+  # With cdn_origin_restriction, anything that did not come through the CDN
+  # (no shared origin header) gets a 403; the listener rules below forward
+  # only requests that carry it.
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.frontend.arn
+    type             = local.cdn_restricted ? "fixed-response" : "forward"
+    target_group_arn = local.cdn_restricted ? null : aws_lb_target_group.frontend.arn
+
+    dynamic "fixed_response" {
+      for_each = local.cdn_restricted ? [1] : []
+      content {
+        content_type = "text/plain"
+        message_body = "Forbidden"
+        status_code  = "403"
+      }
+    }
   }
 }
 
@@ -242,6 +377,35 @@ resource "aws_lb_listener_rule" "api" {
       values = ["/api/v1/*"]
     }
   }
+
+  dynamic "condition" {
+    for_each = local.cdn_restricted ? [1] : []
+    content {
+      http_header {
+        http_header_name = nonsensitive(var.cdn_origin_restriction.header_name)
+        values           = [var.cdn_origin_restriction.header_value]
+      }
+    }
+  }
+}
+
+# Everything else goes to the frontend, but only through the CDN.
+resource "aws_lb_listener_rule" "frontend_cdn" {
+  count        = local.cdn_restricted ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 200
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
+  }
+
+  condition {
+    http_header {
+      http_header_name = nonsensitive(var.cdn_origin_restriction.header_name)
+      values           = [var.cdn_origin_restriction.header_value]
+    }
+  }
 }
 
 # --- ECS Task Definitions ---
@@ -264,16 +428,8 @@ resource "aws_ecs_task_definition" "api" {
       protocol      = "tcp"
     }]
 
-    environment = [
-      { name = "ENVIRONMENT", value = var.environment },
-      { name = "PORT", value = "8000" },
-    ]
-
-    secrets = [
-      { name = "DATABASE_URL", valueFrom = var.db_connection_string_secret_arn },
-      { name = "API_INTERNAL_SECRET", valueFrom = var.api_internal_secret_arn },
-      { name = "REPORTMATE_PASSPHRASE", valueFrom = var.client_passphrase_secret_arn },
-    ]
+    environment = local.api_environment
+    secrets     = local.api_secrets
 
     logConfiguration = {
       logDriver = "awslogs"
@@ -298,6 +454,15 @@ resource "aws_ecs_task_definition" "api" {
     }
   }])
 
+  # Omitted for the X86_64 default so existing task definitions are unchanged.
+  dynamic "runtime_platform" {
+    for_each = var.cpu_architecture == "X86_64" ? [] : [1]
+    content {
+      cpu_architecture        = var.cpu_architecture
+      operating_system_family = "LINUX"
+    }
+  }
+
   tags = { Name = "${local.name_prefix}-api-task" }
 }
 
@@ -319,22 +484,8 @@ resource "aws_ecs_task_definition" "frontend" {
       protocol      = "tcp"
     }]
 
-    environment = [
-      { name = "ENVIRONMENT", value = var.environment },
-      { name = "PORT", value = "3000" },
-      { name = "NEXT_PUBLIC_DEMO_MODE", value = tostring(var.demo_mode) },
-      { name = "API_BASE_URL", value = var.public_api_url },
-      # NextAuth requires its own canonical URL in production.
-      { name = "NEXTAUTH_URL", value = var.public_api_url },
-    ]
-
-    secrets = [
-      { name = "API_INTERNAL_SECRET", valueFrom = var.api_internal_secret_arn },
-      { name = "KIOSK_TOKENS", valueFrom = var.kiosk_tokens_secret_arn },
-      # Without NEXTAUTH_SECRET, NextAuth raises MissingSecretError (NO_SECRET)
-      # and every /api/auth/session call 500s, gating the whole dashboard.
-      { name = "NEXTAUTH_SECRET", valueFrom = var.nextauth_secret_arn },
-    ]
+    environment = local.frontend_environment
+    secrets     = local.frontend_secrets
 
     logConfiguration = {
       logDriver = "awslogs"
@@ -347,6 +498,15 @@ resource "aws_ecs_task_definition" "frontend" {
 
   }])
 
+  # Omitted for the X86_64 default so existing task definitions are unchanged.
+  dynamic "runtime_platform" {
+    for_each = var.cpu_architecture == "X86_64" ? [] : [1]
+    content {
+      cpu_architecture        = var.cpu_architecture
+      operating_system_family = "LINUX"
+    }
+  }
+
   tags = { Name = "${local.name_prefix}-frontend-task" }
 }
 
@@ -356,7 +516,7 @@ resource "aws_ecs_service" "api" {
   name            = "${local.name_prefix}-api"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = 1
+  desired_count   = var.api_min_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -381,7 +541,7 @@ resource "aws_ecs_service" "frontend" {
   name            = "${local.name_prefix}-frontend"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.frontend.arn
-  desired_count   = 1
+  desired_count   = var.frontend_min_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -405,8 +565,8 @@ resource "aws_ecs_service" "frontend" {
 # --- Auto Scaling ---
 
 resource "aws_appautoscaling_target" "api" {
-  max_capacity       = 5
-  min_capacity       = 1
+  max_capacity       = var.api_max_count
+  min_capacity       = var.api_min_count
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.api.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -430,8 +590,8 @@ resource "aws_appautoscaling_policy" "api_cpu" {
 }
 
 resource "aws_appautoscaling_target" "frontend" {
-  max_capacity       = 5
-  min_capacity       = 1
+  max_capacity       = var.frontend_max_count
+  min_capacity       = var.frontend_min_count
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.frontend.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"

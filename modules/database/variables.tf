@@ -58,3 +58,21 @@ variable "multi_az" {
   type        = bool
   default     = false
 }
+
+variable "storage_type" {
+  description = "RDS storage type (gp3, gp2, io1, io2)."
+  type        = string
+  default     = "gp3"
+}
+
+variable "max_allocated_storage" {
+  description = "Upper limit in GB for RDS storage autoscaling. Null leaves autoscaling off."
+  type        = number
+  default     = null
+}
+
+variable "backup_retention_days" {
+  description = "Days of automated RDS backups to keep."
+  type        = number
+  default     = 7
+}

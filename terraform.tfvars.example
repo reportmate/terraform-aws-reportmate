@@ -28,3 +28,62 @@ frontend_memory  = 512
 # Monitoring
 log_retention_days   = 30
 event_retention_days = 30
+
+# Required: the URL browsers use to reach the API
+public_api_url = "https://reportmate.example.com"
+
+# -----------------------------------------------------------------
+# Optional: existing VPC + Microsoft Entra ID sign-in + external CDN
+# Uncomment and adapt. Every value below is a placeholder.
+# -----------------------------------------------------------------
+
+# Deploy into a VPC you already run. The module adds its own subnets and
+# route tables and leaves everything already in the VPC untouched.
+# existing_vpc_id         = "vpc-0123456789abcdef0"
+# existing_nat_gateway_id = "nat-0123456789abcdef0"
+# private_subnet_cidrs = {
+#   "ca-central-1a" = "10.0.110.0/24"
+#   "ca-central-1b" = "10.0.111.0/24"
+# }
+# public_subnet_cidrs = {
+#   "ca-central-1a" = "10.0.120.0/24"
+#   "ca-central-1b" = "10.0.121.0/24"
+# }
+# enable_vpc_endpoints       = false
+# enable_s3_gateway_endpoint = true
+
+# Sign in with Microsoft Entra ID instead of Cognito
+# enable_cognito         = false
+# public_url             = "https://reportmate.example.com"
+# azure_ad_client_id     = "00000000-0000-0000-0000-000000000000"
+# azure_ad_tenant_id     = "00000000-0000-0000-0000-000000000000"
+# azure_ad_client_secret = "CHANGE_ME"
+# nextauth_secret        = "" # empty generates one
+# allowed_domains        = ["example.com"]
+
+# Let the API accept Entra ID bearer tokens
+# api_oidc_enabled   = true
+# api_oidc_issuers   = ["https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0"]
+# api_oidc_audiences = ["api://00000000-0000-0000-0000-000000000000"]
+
+# Only accept traffic that came through the CDN
+# cdn_origin_restriction = {
+#   prefix_list_id = "pl-0123456789abcdef0"
+#   header_name    = "X-Origin-Verify"
+#   header_value   = "CHANGE_ME"
+# }
+
+# Origin certificate validated in your own DNS (two applies, see README)
+# create_origin_certificate       = true
+# origin_domain_name              = "origin.reportmate.example.com"
+# wait_for_certificate_validation = false
+
+# Sizing
+# api_min_count            = 2
+# api_max_count            = 6
+# frontend_min_count       = 2
+# frontend_max_count       = 4
+# cpu_architecture         = "X86_64"
+# db_storage_type          = "gp3"
+# db_max_allocated_storage = 200
+# db_backup_retention_days = 14
