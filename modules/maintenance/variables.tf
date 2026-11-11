@@ -53,3 +53,29 @@ variable "event_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "assign_public_ip" {
+  description = "Give the task a public IP. Needed when it runs in a public subnet without NAT."
+  type        = bool
+  default     = false
+}
+
+variable "db_host" {
+  description = "Database host name, passed to the maintenance image as DB_HOST."
+  type        = string
+}
+
+variable "db_name" {
+  description = "Database name, passed as DB_NAME."
+  type        = string
+}
+
+variable "db_username" {
+  description = "Database user, passed as DB_USER."
+  type        = string
+}
+
+variable "db_password_secret_arn" {
+  description = "Secrets Manager ARN of the database password, passed as DB_PASS."
+  type        = string
+}

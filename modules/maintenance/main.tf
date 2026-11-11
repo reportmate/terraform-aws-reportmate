@@ -48,10 +48,15 @@ resource "aws_ecs_task_definition" "maintenance" {
 
     environment = [
       { name = "EVENT_RETENTION_DAYS", value = tostring(var.event_retention_days) },
+      # The maintenance image reads the connection as separate settings.
+      { name = "DB_HOST", value = var.db_host },
+      { name = "DB_NAME", value = var.db_name },
+      { name = "DB_USER", value = var.db_username },
     ]
 
     secrets = [
       { name = "DATABASE_URL", valueFrom = var.db_connection_string_secret_arn },
+      { name = "DB_PASS", valueFrom = var.db_password_secret_arn },
     ]
 
     logConfiguration = {
@@ -91,7 +96,7 @@ resource "aws_scheduler_schedule" "maintenance" {
       network_configuration {
         subnets          = var.private_subnet_ids
         security_groups  = var.security_group_ids
-        assign_public_ip = false
+        assign_public_ip = var.assign_public_ip
       }
     }
   }

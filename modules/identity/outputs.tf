@@ -17,3 +17,8 @@ output "ecs_task_role_name" {
   description = "ECS task role name"
   value       = aws_iam_role.ecs_task.name
 }
+
+output "ecs_infrastructure_role_arn" {
+  description = "ECS infrastructure role ARN for Express Mode (null in alb mode). Available only after its policy is attached."
+  value       = try(aws_iam_role_policy_attachment.ecs_infrastructure[0].role, null) == null ? null : aws_iam_role.ecs_infrastructure[0].arn
+}

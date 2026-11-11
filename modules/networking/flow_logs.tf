@@ -41,12 +41,29 @@ resource "aws_s3_bucket_lifecycle_configuration" "flow_logs" {
   }
 }
 
+# A VPC the module creates gets one VPC-wide flow log. In an existing VPC the
+# module logs only its own subnets, so it never captures (or pays for) other
+# tenants' traffic in the shared VPC.
 resource "aws_flow_log" "vpc" {
-  count                = var.enable_vpc_flow_logs ? 1 : 0
-  vpc_id               = aws_vpc.main.id
+  count                = var.enable_vpc_flow_logs && local.create_vpc ? 1 : 0
+  vpc_id               = aws_vpc.main[0].id
   traffic_type         = "ALL"
   log_destination_type = "s3"
   log_destination      = aws_s3_bucket.flow_logs[0].arn
 
   tags = { Name = "${local.name_prefix}-vpc-flow-log" }
+}
+
+resource "aws_flow_log" "subnet" {
+  for_each = var.enable_vpc_flow_logs && !local.create_vpc ? merge(
+    { for az, subnet in aws_subnet.shared_private : "private-${az}" => subnet.id },
+    { for az, subnet in aws_subnet.shared_public : "public-${az}" => subnet.id },
+  ) : {}
+
+  subnet_id            = each.value
+  traffic_type         = "ALL"
+  log_destination_type = "s3"
+  log_destination      = aws_s3_bucket.flow_logs[0].arn
+
+  tags = { Name = "${local.name_prefix}-${each.key}-flow-log" }
 }

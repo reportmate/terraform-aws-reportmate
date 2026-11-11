@@ -38,3 +38,30 @@ variable "client_passphrase" {
   type        = string
   sensitive   = true
 }
+
+variable "create_entra_secrets" {
+  description = "Create the NextAuth and Entra ID client secrets (set when Cognito is disabled)."
+  type        = bool
+  default     = false
+}
+
+variable "nextauth_secret" {
+  description = "NextAuth session secret. Empty generates a random one."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "azure_ad_client_secret" {
+  description = "Microsoft Entra ID app registration client secret."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "applicationinsights_connection_string" {
+  description = "Application Insights connection string for the API. Empty skips the secret."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

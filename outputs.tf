@@ -44,12 +44,12 @@ output "storage_bucket_name" {
 
 output "cognito_user_pool_endpoint" {
   description = "Cognito OIDC endpoint"
-  value       = module.auth.user_pool_endpoint
+  value       = try(module.auth[0].user_pool_endpoint, null)
 }
 
 output "cognito_client_id" {
   description = "Cognito app client ID"
-  value       = module.auth.client_id
+  value       = try(module.auth[0].client_id, null)
 }
 
 # --- Messaging ---
@@ -76,6 +76,40 @@ output "demo_loop_ecr_repository_url" {
 output "demo_loop_service_name" {
   description = "ECS service name for the demo loop"
   value       = try(module.demo_loop[0].service_name, null)
+}
+
+# --- Networking ---
+
+output "vpc_id" {
+  description = "VPC the deployment runs in (created or existing)"
+  value       = module.networking.vpc_id
+}
+
+output "private_subnet_ids" {
+  description = "Private subnets the deployment uses"
+  value       = module.networking.private_subnet_ids
+}
+
+output "public_subnet_ids" {
+  description = "Public subnets the deployment uses"
+  value       = module.networking.public_subnet_ids
+}
+
+# --- Edge ---
+
+output "alb_dns_name" {
+  description = "Module ALB DNS name, the origin host for an external CDN (null in express mode)"
+  value       = module.containers.alb_dns_name
+}
+
+output "api_service_url" {
+  description = "HTTPS URL of the API: the AWS-managed Express Mode URL, or the ALB URL in alb mode"
+  value       = module.containers.api_service_url
+}
+
+output "frontend_service_url" {
+  description = "HTTPS URL of the frontend: the AWS-managed Express Mode URL, or the ALB URL in alb mode"
+  value       = module.containers.frontend_service_url
 }
 
 output "region" {

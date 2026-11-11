@@ -44,8 +44,10 @@ resource "aws_db_instance" "main" {
   engine_version    = "16"
   instance_class    = var.instance_class
   allocated_storage = var.allocated_storage
-  storage_type      = "gp3"
+  storage_type      = var.storage_type
   storage_encrypted = true
+
+  max_allocated_storage = var.max_allocated_storage
 
   db_name  = var.db_name
   username = var.db_username
@@ -57,7 +59,7 @@ resource "aws_db_instance" "main" {
   multi_az            = var.multi_az
   publicly_accessible = false
 
-  backup_retention_period   = 7
+  backup_retention_period   = var.backup_retention_days
   skip_final_snapshot       = false
   final_snapshot_identifier = "${local.name_prefix}-final-snapshot"
 
