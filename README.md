@@ -11,7 +11,7 @@ Development guide: [wiki](wiki/README.md)
 - **Compute**: ECS Fargate (API + Frontend services)
 - **Database**: RDS PostgreSQL 16
 - **Registry**: ECR (API + Frontend repositories)
-- **Networking**: VPC, public/private subnets, NAT Gateway, ALB (or additive subnets in an existing VPC)
+- **Networking**: VPC, public/private subnets, NAT Gateway, ALB (or an existing VPC, and optionally ECS Express Mode instead of the ALB)
 - **Secrets**: AWS Secrets Manager
 - **Monitoring**: CloudWatch Logs + SNS alerts
 - **Identity**: IAM roles for ECS task execution and application access
@@ -19,7 +19,7 @@ Development guide: [wiki](wiki/README.md)
 ## Prerequisites
 
 - AWS CLI configured (`~/.aws/credentials`)
-- Terraform >= 1.5
+- Terraform >= 1.5 and AWS provider 6.71 or later
 - S3 bucket + DynamoDB table for state backend
 
 ## Quick Start
@@ -68,15 +68,39 @@ bootstrap/      S3 bucket and DynamoDB table for the state backend
 
 [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) runs on pull requests and pushes to `main` that change Terraform files or the workflow. It checks formatting with `terraform fmt -check -recursive`, then runs `terraform init -backend=false` and `terraform validate` in the root module (which covers every module under `modules/`) and in `bootstrap/`. It uses no cloud credentials and never plans or applies; plan and apply belong in your own adapted copy.
 
-## Deploying into an existing VPC with Entra ID and a CDN
+## Options
 
-Every input in this section is optional. With none of them set, the module behaves exactly as before: its own VPC, Cognito sign-in and an open ALB. Commented placeholders for all of them are in `terraform.tfvars.example`.
+Every input in this section is optional. With none of them set, the module behaves as it did before: its own VPC with NAT, Cognito sign-in and its own open ALB. Commented placeholders for all of them are in `terraform.tfvars.example`.
 
 ### Existing VPC
 
-Set `existing_vpc_id` to deploy into a VPC you already run. The module then creates no VPC, internet gateway or NAT gateway. It adds its own subnets from `private_subnet_cidrs` and `public_subnet_cidrs` (each maps an availability zone to a CIDR, with at least two zones and the same zones in both). It also adds one private route table whose default route goes to `existing_nat_gateway_id`, and one public route table whose default route goes to the internet gateway already attached to the VPC. Existing subnets and route tables are never modified.
+Set `existing_vpc_id` to deploy into a VPC that another Terraform root owns, for example one shared by several applications. In this mode the module creates no VPC, internet gateway or NAT gateway. For each tier, private and public, choose one option:
 
-In this mode VPC flow logs cover only the module's own subnets. Leave `enable_vpc_endpoints` off if the VPC already has interface endpoints with private DNS for ECR, CloudWatch Logs or Secrets Manager, and set `enable_s3_gateway_endpoint = false` if S3 endpoints are managed centrally.
+- **Subnets that already exist**: pass `existing_private_subnet_ids` or `existing_public_subnet_ids`, with at least two subnets in different AZs. Their route tables stay with the VPC owner.
+- **The module's own subnets**: pass `private_subnet_cidrs` or `public_subnet_cidrs`, mapping each AZ to a CIDR, with at least two AZs. The module creates the subnets and one route table per tier. Created private subnets route 0.0.0.0/0 to `existing_nat_gateway_id`. Created public subnets route to the internet gateway already attached to the VPC.
+
+Existing subnets, route tables and gateways are never modified. VPC flow logs cover only the subnets the module creates. Leave `enable_vpc_endpoints` off if the VPC already has interface endpoints with private DNS for ECR, CloudWatch Logs or Secrets Manager. Set `enable_s3_gateway_endpoint = false` if S3 endpoints are managed centrally.
+
+### Running without NAT
+
+In the module's own VPC, `enable_nat_gateway = false` removes the NAT gateway and its cost. Private subnets then have no internet route, so set `tasks_in_public_subnets = true`. The API, frontend, maintenance and demo-loop tasks then run in the public subnets with public IPs, and reach ECR, Secrets Manager and CloudWatch Logs directly. Their security group still admits only the load balancer. RDS stays in the private subnets.
+
+Turning NAT off on an existing deployment can leave the old default route in the private route tables. AWS keeps an inline route when its block is removed from the configuration, and the route then points at a deleted NAT gateway. Delete that route once the tasks have moved to the public subnets.
+
+### Ingress: ALB or ECS Express Mode
+
+`ingress_mode = "alb"` (the default) is the module's own ALB, target groups and ECS services. Use `acm_certificate_arn` to serve HTTPS on it.
+
+`ingress_mode = "express"` runs the API and frontend as ECS Express Mode services (`aws_ecs_express_gateway_service`, AWS provider 6.71 or later). Each service gets an AWS-managed load balancer, HTTPS certificate and URL on `*.ecs.<region>.on.aws`, with no certificate or DNS of your own. The URLs are in the `api_service_url` and `frontend_service_url` outputs. CPU, memory, minimum and maximum task counts, CPU architecture, environment, secrets, task and execution roles, log groups and health-check paths carry over. The module adds the ECS infrastructure role that Express needs.
+
+Express Mode has limits that the ALB mode does not:
+
+- **Public subnets only**: Express creates an internet-facing load balancer only for public subnets, and then gives the tasks public IPs, so these services always run there.
+- **No origin restriction**: the load balancer, its security group and its listener rules belong to AWS. The module cannot limit ingress to a CDN prefix list or check an origin header, so `cdn_origin_restriction` is rejected in this mode.
+- **No container health check**: Express sets the target-group health check (5-second timeout) and accepts no container-level health check. An API that is slow to open a database connection can fail it more readily than in ALB mode.
+- **URLs exist only after the first apply**: when `public_api_url` is empty, the frontend's `API_BASE_URL` falls back to the API's Express URL. The frontend cannot reference its own URL, so after the first apply, set `public_url` to the `frontend_service_url` output (or to your CDN hostname) and apply again so that NextAuth gets its canonical URL.
+- **One routing path**: the API and frontend are separate hostnames, not one host with path routing.
+- **Fixed settings**: the service name, cluster and infrastructure role cannot change after creation. Express also uses its own deployment strategy and scaling-policy defaults.
 
 ### Microsoft Entra ID sign-in
 
@@ -86,17 +110,9 @@ The API can accept Entra ID bearer tokens through `api_oidc_enabled`, `api_oidc_
 
 ### External CDN in front of the ALB
 
-`cdn_origin_restriction` limits the ALB to a CDN. Its `prefix_list_id` is a managed prefix list holding the CDN's backend ranges, which you create for a CDN outside AWS. With it set, the ALB security group allows only HTTPS from that list, and the HTTPS listener returns 403 unless the request carries `header_name` with `header_value`, which the CDN adds on its way to the origin. Each prefix-list entry counts against the security group's rule quota.
+In ALB mode, `cdn_origin_restriction` limits the ALB to a CDN. Its `prefix_list_id` is a managed prefix list holding the CDN's backend ranges, which you create for a CDN outside AWS. With it set, the ALB security group allows only HTTPS from that list, and the HTTPS listener returns 403 unless the request carries `header_name` with `header_value`, which the CDN adds on its way to the origin. Each prefix-list entry counts against the security group's rule quota.
 
-In this mode anything that reaches the ALB without going through the CDN is refused. That includes the demo loop's default target and the WebSocket API's negotiate call, so point those at the CDN URL if you use them.
-
-### Origin certificate with DNS outside AWS
-
-The HTTPS listener uses `acm_certificate_arn`. To have Terraform request the certificate instead, set `create_origin_certificate = true` and `origin_domain_name`. ACM cannot attach a certificate it has not issued yet, so this takes two applies.
-
-On the first apply, create the CNAME from the `origin_certificate_validation_records` output in your DNS provider, and CNAME `origin_domain_name` to the `alb_dns_name` output.
-
-On the second apply, set `wait_for_certificate_validation = true`. Terraform waits for ACM to issue the certificate and puts it on the HTTPS listener.
+Anything that reaches the ALB without going through the CDN is refused. That includes the demo loop's default target and the WebSocket API's negotiate call, so point those at the CDN URL if you use them.
 
 ## Container Deployment
 

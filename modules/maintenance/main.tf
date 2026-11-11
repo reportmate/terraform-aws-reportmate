@@ -91,7 +91,7 @@ resource "aws_scheduler_schedule" "maintenance" {
       network_configuration {
         subnets          = var.private_subnet_ids
         security_groups  = var.security_group_ids
-        assign_public_ip = false
+        assign_public_ip = var.assign_public_ip
       }
     }
   }

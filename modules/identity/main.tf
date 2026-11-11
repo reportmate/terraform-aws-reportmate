@@ -79,3 +79,32 @@ resource "aws_iam_role_policy" "ecs_task_logs" {
     }]
   })
 }
+
+# --- ECS infrastructure role (Express Mode only) ---
+#
+# Lets ECS create and manage the load balancer, target groups, security
+# groups and scaling policies behind Express Mode services.
+
+resource "aws_iam_role" "ecs_infrastructure" {
+  count = var.ingress_mode == "express" ? 1 : 0
+  name  = "${local.name_prefix}-ecs-infrastructure"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ecs.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = { Name = "${local.name_prefix}-ecs-infrastructure" }
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_infrastructure" {
+  count      = var.ingress_mode == "express" ? 1 : 0
+  role       = aws_iam_role.ecs_infrastructure[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+}

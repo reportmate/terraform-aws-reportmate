@@ -53,3 +53,9 @@ variable "event_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "assign_public_ip" {
+  description = "Give the task a public IP. Needed when it runs in a public subnet without NAT."
+  type        = bool
+  default     = false
+}

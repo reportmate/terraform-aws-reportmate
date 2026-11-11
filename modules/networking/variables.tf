@@ -75,3 +75,21 @@ variable "public_subnet_cidrs" {
   type        = map(string)
   default     = {}
 }
+
+variable "existing_private_subnet_ids" {
+  description = "Existing-VPC mode: use these existing private subnets (at least two, in different AZs) instead of creating them from private_subnet_cidrs."
+  type        = list(string)
+  default     = []
+}
+
+variable "existing_public_subnet_ids" {
+  description = "Existing-VPC mode: use these existing public subnets (at least two, in different AZs) instead of creating them from public_subnet_cidrs."
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_nat_gateway" {
+  description = "Create NAT gateway(s) when the module creates the VPC. False removes NAT cost; tasks then need public subnets and public IPs."
+  type        = bool
+  default     = true
+}

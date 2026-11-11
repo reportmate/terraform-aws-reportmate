@@ -15,7 +15,7 @@ output "user_pool_endpoint" {
 
 output "user_pool_domain" {
   description = "Cognito User Pool hosted UI domain"
-  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com"
+  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.region}.amazoncognito.com"
 }
 
 output "client_id" {

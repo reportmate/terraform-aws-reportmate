@@ -9,13 +9,21 @@ module "networking" {
   enable_multi_az_nat  = var.enable_multi_az_nat
   enable_vpc_flow_logs = var.enable_vpc_flow_logs
   enable_vpc_endpoints = var.enable_vpc_endpoints
+  enable_nat_gateway   = var.enable_nat_gateway
 
   enable_s3_gateway_endpoint = var.enable_s3_gateway_endpoint
 
-  existing_vpc_id         = var.existing_vpc_id
-  existing_nat_gateway_id = var.existing_nat_gateway_id
-  private_subnet_cidrs    = var.private_subnet_cidrs
-  public_subnet_cidrs     = var.public_subnet_cidrs
+  existing_vpc_id             = var.existing_vpc_id
+  existing_nat_gateway_id     = var.existing_nat_gateway_id
+  existing_private_subnet_ids = var.existing_private_subnet_ids
+  existing_public_subnet_ids  = var.existing_public_subnet_ids
+  private_subnet_cidrs        = var.private_subnet_cidrs
+  public_subnet_cidrs         = var.public_subnet_cidrs
+}
+
+locals {
+  # Where ECS tasks run. RDS always uses the private subnets.
+  task_subnet_ids = var.tasks_in_public_subnets ? module.networking.public_subnet_ids : module.networking.private_subnet_ids
 }
 
 # --- Monitoring ---
@@ -117,6 +125,7 @@ module "identity" {
 
   project_name = var.project_name
   environment  = var.environment
+  ingress_mode = var.ingress_mode
   secret_arns  = concat(module.secrets.all_secret_arns, local.auth_secret_arns, local.extra_secret_arns)
 
   ecr_repository_arns = [
@@ -129,7 +138,26 @@ module "identity" {
   ]
 }
 
-data "aws_caller_identity" "current" {}
+# Cross-input checks. They live on a data source so they hold on every
+# supported Terraform version and add nothing to the plan.
+data "aws_caller_identity" "current" {
+  lifecycle {
+    precondition {
+      condition     = var.existing_vpc_id != null || var.enable_nat_gateway || var.tasks_in_public_subnets
+      error_message = "enable_nat_gateway = false leaves private subnets without egress; set tasks_in_public_subnets = true."
+    }
+
+    precondition {
+      condition     = var.ingress_mode == "alb" || !nonsensitive(var.cdn_origin_restriction != null)
+      error_message = "cdn_origin_restriction needs ingress_mode = \"alb\": Express Mode load balancers are managed by AWS and cannot be restricted by this module."
+    }
+
+    precondition {
+      condition     = var.ingress_mode == "express" || var.public_api_url != ""
+      error_message = "public_api_url is required with ingress_mode = \"alb\"."
+    }
+  }
+}
 
 # --- Containers ---
 
@@ -141,6 +169,7 @@ module "containers" {
   region       = var.region
 
   vpc_id             = module.networking.vpc_id
+  vpc_cidr_block     = module.networking.vpc_cidr_block
   public_subnet_ids  = module.networking.public_subnet_ids
   private_subnet_ids = module.networking.private_subnet_ids
 
@@ -172,7 +201,11 @@ module "containers" {
 
   public_api_url      = var.public_api_url
   demo_mode           = var.enable_demo_loop
-  acm_certificate_arn = local.acm_certificate_arn
+  acm_certificate_arn = var.acm_certificate_arn
+
+  ingress_mode            = var.ingress_mode
+  tasks_in_public_subnets = var.tasks_in_public_subnets
+  infrastructure_role_arn = module.identity.ecs_infrastructure_role_arn
 
   cdn_origin_restriction = var.cdn_origin_restriction
 
@@ -222,7 +255,8 @@ module "maintenance" {
 
   db_connection_string_secret_arn = module.secrets.db_connection_string_secret_arn
 
-  private_subnet_ids = module.networking.private_subnet_ids
+  private_subnet_ids = local.task_subnet_ids
+  assign_public_ip   = var.tasks_in_public_subnets
   security_group_ids = [module.containers.ecs_tasks_security_group_id]
 
   log_group_name       = module.monitoring.maintenance_log_group_name
@@ -254,7 +288,8 @@ module "demo_loop" {
   # external endpoint for testing.
   api_url = coalesce(var.demo_loop_api_url, module.containers.alb_base_url)
 
-  private_subnet_ids = module.networking.private_subnet_ids
+  private_subnet_ids = local.task_subnet_ids
+  assign_public_ip   = var.tasks_in_public_subnets
   security_group_ids = [module.containers.ecs_tasks_security_group_id]
 
   log_group_name = module.monitoring.demo_loop_log_group_name

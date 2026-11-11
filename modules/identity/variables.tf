@@ -25,3 +25,9 @@ variable "log_group_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "ingress_mode" {
+  description = "alb or express. Express creates the ECS infrastructure role."
+  type        = string
+  default     = "alb"
+}

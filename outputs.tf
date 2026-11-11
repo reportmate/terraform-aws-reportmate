@@ -86,42 +86,30 @@ output "vpc_id" {
 }
 
 output "private_subnet_ids" {
-  description = "Private subnets owned by this deployment"
+  description = "Private subnets the deployment uses"
   value       = module.networking.private_subnet_ids
 }
 
 output "public_subnet_ids" {
-  description = "Public subnets owned by this deployment"
+  description = "Public subnets the deployment uses"
   value       = module.networking.public_subnet_ids
 }
 
 # --- Edge ---
 
 output "alb_dns_name" {
-  description = "ALB DNS name: CNAME origin_domain_name to it, or use it as the CDN origin host"
+  description = "Module ALB DNS name, the origin host for an external CDN (null in express mode)"
   value       = module.containers.alb_dns_name
 }
 
-output "listener_certificate_arn" {
-  description = "ACM certificate on the HTTPS listener (null when the listener is plain HTTP)"
-  value       = local.acm_certificate_arn == "" ? null : local.acm_certificate_arn
+output "api_service_url" {
+  description = "HTTPS URL of the API: the AWS-managed Express Mode URL, or the ALB URL in alb mode"
+  value       = module.containers.api_service_url
 }
 
-output "origin_certificate_arn" {
-  description = "Origin certificate requested when create_origin_certificate = true"
-  value       = try(aws_acm_certificate.origin[0].arn, null)
-}
-
-output "origin_certificate_validation_records" {
-  description = "DNS records to create in your DNS provider so ACM can validate the origin certificate (name, type, value)"
-  value = var.create_origin_certificate ? [
-    for dvo in aws_acm_certificate.origin[0].domain_validation_options : {
-      domain = dvo.domain_name
-      name   = dvo.resource_record_name
-      type   = dvo.resource_record_type
-      value  = dvo.resource_record_value
-    }
-  ] : []
+output "frontend_service_url" {
+  description = "HTTPS URL of the frontend: the AWS-managed Express Mode URL, or the ALB URL in alb mode"
+  value       = module.containers.frontend_service_url
 }
 
 output "region" {

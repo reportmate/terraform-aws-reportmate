@@ -17,9 +17,11 @@ data "aws_region" "current" {}
 # --- S3 gateway endpoint (on unless enable_s3_gateway_endpoint = false) ---
 
 resource "aws_vpc_endpoint" "s3" {
-  count             = var.enable_s3_gateway_endpoint ? 1 : 0
+  # Needs a route table this module owns; skipped when every private subnet
+  # was supplied by the VPC owner.
+  count             = var.enable_s3_gateway_endpoint && length(local.private_route_table_ids) > 0 ? 1 : 0
   vpc_id            = local.vpc_id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
+  service_name      = "com.amazonaws.${data.aws_region.current.region}.s3"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = local.private_route_table_ids
 
@@ -73,7 +75,7 @@ resource "aws_security_group" "vpc_endpoints" {
 resource "aws_vpc_endpoint" "interface" {
   for_each            = local.interface_endpoints
   vpc_id              = local.vpc_id
-  service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.value}"
+  service_name        = "com.amazonaws.${data.aws_region.current.region}.${each.value}"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = local.private_subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints[0].id]

@@ -3,8 +3,10 @@ terraform {
 
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+      source = "hashicorp/aws"
+      # 6.71 is the first release whose aws_ecs_express_gateway_service
+      # takes cpu_architecture (ingress_mode = "express").
+      version = ">= 6.71, < 7.0"
     }
     random = {
       source  = "hashicorp/random"

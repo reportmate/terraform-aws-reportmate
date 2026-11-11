@@ -29,17 +29,19 @@ frontend_memory  = 512
 log_retention_days   = 30
 event_retention_days = 30
 
-# Required: the URL browsers use to reach the API
+# The URL browsers use to reach the API (may be empty with ingress_mode = "express")
 public_api_url = "https://reportmate.example.com"
 
 # -----------------------------------------------------------------
-# Optional: existing VPC + Microsoft Entra ID sign-in + external CDN
-# Uncomment and adapt. Every value below is a placeholder.
+# Optional settings. Uncomment and adapt; every value is a placeholder.
 # -----------------------------------------------------------------
 
-# Deploy into a VPC you already run. The module adds its own subnets and
-# route tables and leaves everything already in the VPC untouched.
-# existing_vpc_id         = "vpc-0123456789abcdef0"
+# Deploy into a VPC another Terraform root owns. No VPC, IGW or NAT is created.
+# For each tier use existing subnet IDs, or CIDRs for the module's own subnets.
+# existing_vpc_id             = "vpc-0123456789abcdef0"
+# existing_private_subnet_ids = ["subnet-0123456789abcdef0", "subnet-0123456789abcdef1"]
+# existing_public_subnet_ids  = ["subnet-0123456789abcdef2", "subnet-0123456789abcdef3"]
+# Or, instead of existing subnet IDs:
 # existing_nat_gateway_id = "nat-0123456789abcdef0"
 # private_subnet_cidrs = {
 #   "ca-central-1a" = "10.0.110.0/24"
@@ -51,6 +53,14 @@ public_api_url = "https://reportmate.example.com"
 # }
 # enable_vpc_endpoints       = false
 # enable_s3_gateway_endpoint = true
+
+# In the module's own VPC, skip NAT and run tasks in the public subnets
+# enable_nat_gateway      = false
+# tasks_in_public_subnets = true
+
+# Expose the API and frontend as ECS Express Mode services with
+# AWS-managed HTTPS URLs (no certificate or DNS needed)
+# ingress_mode = "express"
 
 # Sign in with Microsoft Entra ID instead of Cognito
 # enable_cognito         = false
@@ -66,17 +76,12 @@ public_api_url = "https://reportmate.example.com"
 # api_oidc_issuers   = ["https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0"]
 # api_oidc_audiences = ["api://00000000-0000-0000-0000-000000000000"]
 
-# Only accept traffic that came through the CDN
+# ALB mode only: accept traffic only through a CDN
 # cdn_origin_restriction = {
 #   prefix_list_id = "pl-0123456789abcdef0"
 #   header_name    = "X-Origin-Verify"
 #   header_value   = "CHANGE_ME"
 # }
-
-# Origin certificate validated in your own DNS (two applies, see README)
-# create_origin_certificate       = true
-# origin_domain_name              = "origin.reportmate.example.com"
-# wait_for_certificate_validation = false
 
 # Sizing
 # api_min_count            = 2

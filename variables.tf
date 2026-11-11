@@ -50,11 +50,28 @@ variable "enable_vpc_endpoints" {
   default     = false
 }
 
+variable "enable_nat_gateway" {
+  description = "Create NAT gateway(s) for private-subnet egress. Set false to skip NAT cost; tasks_in_public_subnets must then be true (or ingress_mode = \"express\" with maintenance in public subnets)."
+  type        = bool
+  default     = true
+}
+
+variable "tasks_in_public_subnets" {
+  description = "Run ECS tasks (API, frontend, maintenance, demo loop) in the public subnets with a public IP, so they reach ECR, Secrets Manager and logs without NAT. RDS stays in the private subnets."
+  type        = bool
+  default     = false
+}
+
 variable "enable_multi_az_nat" {
   description = "Provision one NAT gateway per AZ instead of a single shared NAT. Doubles NAT hourly cost in exchange for AZ-isolated egress."
   type        = bool
   default     = false
 }
+
+
+
+
+
 
 variable "enable_s3_gateway_endpoint" {
   description = "Create the free S3 gateway endpoint on the deployment's private route tables. Turn off where the VPC owner manages S3 endpoints centrally."
@@ -65,9 +82,10 @@ variable "enable_s3_gateway_endpoint" {
 # --- Existing VPC (opt-in) ---
 #
 # Leave existing_vpc_id null to create a dedicated VPC (vpc_cidr,
-# enable_multi_az_nat). Set it to deploy into a VPC you already run: the module
-# then adds its own subnets and route tables there and changes nothing that
-# already exists. vpc_cidr and enable_multi_az_nat are ignored in that mode.
+# enable_multi_az_nat, enable_nat_gateway). Set it to deploy into a VPC another
+# Terraform root owns: the module then creates no VPC, internet gateway or NAT.
+# For each tier, pass existing subnet IDs, or CIDRs for the module to create its
+# own subnets and route tables. Nothing that already exists is changed.
 
 variable "existing_vpc_id" {
   description = "ID of an existing VPC to deploy into (for example vpc-0123456789abcdef0). Null creates a new VPC."
@@ -76,9 +94,31 @@ variable "existing_vpc_id" {
 }
 
 variable "existing_nat_gateway_id" {
-  description = "Existing NAT gateway (nat-...) that the deployment's private route table sends 0.0.0.0/0 to. Required with existing_vpc_id."
+  description = "Existing NAT gateway (nat-...) that the module-created private route table sends 0.0.0.0/0 to. Required when private_subnet_cidrs is used."
   type        = string
   default     = null
+}
+
+variable "existing_private_subnet_ids" {
+  description = "Existing-VPC mode: existing private subnets to use (at least two, in different AZs), instead of private_subnet_cidrs. Their route tables stay with the VPC owner."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.existing_private_subnet_ids) == 0 || length(var.existing_private_subnet_ids) >= 2
+    error_message = "existing_private_subnet_ids needs at least two subnets (RDS and the ALB need two AZs)."
+  }
+}
+
+variable "existing_public_subnet_ids" {
+  description = "Existing-VPC mode: existing public subnets to use (at least two, in different AZs), instead of public_subnet_cidrs. Their route tables stay with the VPC owner."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.existing_public_subnet_ids) == 0 || length(var.existing_public_subnet_ids) >= 2
+    error_message = "existing_public_subnet_ids needs at least two subnets (the ALB needs two AZs)."
+  }
 }
 
 variable "private_subnet_cidrs" {
@@ -416,33 +456,38 @@ variable "event_retention_days" {
 # --- Public URL ---
 
 variable "public_api_url" {
-  description = "Public URL the browser uses to reach the API (frontend API_BASE_URL). Required so the rendered HTML points at the right hostname."
+  description = "Public URL the browser uses to reach the API (frontend API_BASE_URL). Empty is allowed only in express ingress mode, where it falls back to the API's AWS-managed URL."
   type        = string
+  default     = ""
+}
+
+# --- Ingress ---
+
+variable "ingress_mode" {
+  description = <<-EOT
+    How the API and frontend are exposed.
+    "alb" (default): the module's own ALB, ECS services and target groups.
+    "express": ECS Express Mode services, each with an AWS-managed HTTPS URL
+    on *.ecs.<region>.on.aws and no certificate or DNS of your own. Express
+    tasks always run in the public subnets with public IPs.
+  EOT
+  type        = string
+  default     = "alb"
+
+  validation {
+    condition     = contains(["alb", "express"], var.ingress_mode)
+    error_message = "ingress_mode must be \"alb\" or \"express\"."
+  }
 }
 
 variable "acm_certificate_arn" {
-  description = "ACM certificate ARN for the ALB HTTPS listener. Empty = HTTP-only (dev only). Replaced by the issued origin certificate once wait_for_certificate_validation = true."
+  description = "ACM certificate ARN for the ALB HTTPS listener. Empty = HTTP-only (dev only). Not used in express ingress mode."
   type        = string
   default     = ""
 }
 
-variable "create_origin_certificate" {
-  description = "Request a DNS-validated ACM certificate for origin_domain_name. The validation record is output (origin_certificate_validation_records) for you to create in your own DNS provider."
-  type        = bool
-  default     = false
-}
 
-variable "origin_domain_name" {
-  description = "Hostname for the origin certificate, for example origin.reportmate.example.com. CNAME it to the alb_dns_name output."
-  type        = string
-  default     = ""
-}
 
-variable "wait_for_certificate_validation" {
-  description = "Wait for ACM to issue the origin certificate and put it on the HTTPS listener. Set true on the apply after the validation CNAME exists; until then the listener uses acm_certificate_arn."
-  type        = bool
-  default     = false
-}
 
 # --- Edge restriction (opt-in) ---
 
@@ -452,7 +497,9 @@ variable "cdn_origin_restriction" {
     only HTTPS from prefix_list_id (a managed prefix list of the CDN's backend
     ranges), and the HTTPS listener returns 403 unless the request carries
     header_name: header_value, which the CDN adds on its way to the origin.
-    Null (default) leaves the ALB open on 80 and 443.
+    Null (default) leaves the ALB open on 80 and 443. Supported only with
+    ingress_mode = "alb": an Express Mode load balancer and its security
+    group are managed by AWS and have no listener rules to add a header check.
   EOT
   type = object({
     prefix_list_id = string

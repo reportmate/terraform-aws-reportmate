@@ -10,16 +10,31 @@ locals {
   create_vpc = var.existing_vpc_id == null
 
   azs       = length(var.availability_zones) > 0 ? var.availability_zones : slice(data.aws_availability_zones.available.names, 0, 2)
-  nat_count = local.create_vpc ? (var.enable_multi_az_nat ? length(local.azs) : 1) : 0
+  nat_count = local.create_vpc && var.enable_nat_gateway ? (var.enable_multi_az_nat ? length(local.azs) : 1) : 0
+
+  # Existing-VPC mode, per tier: use subnets the VPC owner already made
+  # (existing_*_subnet_ids), or create the module's own from *_subnet_cidrs.
+  use_existing_private = length(var.existing_private_subnet_ids) > 0
+  use_existing_public  = length(var.existing_public_subnet_ids) > 0
+  shared_private_cidrs = local.create_vpc || local.use_existing_private ? {} : var.private_subnet_cidrs
+  shared_public_cidrs  = local.create_vpc || local.use_existing_public ? {} : var.public_subnet_cidrs
 
   vpc_id         = local.create_vpc ? aws_vpc.main[0].id : data.aws_vpc.existing[0].id
   vpc_cidr_block = local.create_vpc ? aws_vpc.main[0].cidr_block : data.aws_vpc.existing[0].cidr_block
 
-  public_subnet_ids  = local.create_vpc ? aws_subnet.public[*].id : [for az in sort(keys(var.public_subnet_cidrs)) : aws_subnet.shared_public[az].id]
-  private_subnet_ids = local.create_vpc ? aws_subnet.private[*].id : [for az in sort(keys(var.private_subnet_cidrs)) : aws_subnet.shared_private[az].id]
+  public_subnet_ids = (
+    local.create_vpc ? aws_subnet.public[*].id :
+    local.use_existing_public ? var.existing_public_subnet_ids :
+    [for az in sort(keys(local.shared_public_cidrs)) : aws_subnet.shared_public[az].id]
+  )
+  private_subnet_ids = (
+    local.create_vpc ? aws_subnet.private[*].id :
+    local.use_existing_private ? var.existing_private_subnet_ids :
+    [for az in sort(keys(local.shared_private_cidrs)) : aws_subnet.shared_private[az].id]
+  )
 
   private_route_table_ids = local.create_vpc ? aws_route_table.private[*].id : aws_route_table.shared_private[*].id
-  nat_gateway_ids         = local.create_vpc ? aws_nat_gateway.main[*].id : [var.existing_nat_gateway_id]
+  nat_gateway_ids         = local.create_vpc ? aws_nat_gateway.main[*].id : compact([var.existing_nat_gateway_id == null ? "" : var.existing_nat_gateway_id])
 }
 
 data "aws_availability_zones" "available" {
@@ -84,7 +99,10 @@ moved {
 #
 # Single NAT by default (cheap, AZ-fragile). Set enable_multi_az_nat = true
 # to provision one per AZ so an AZ outage does not take down egress for the
-# whole VPC. None are created in an existing VPC.
+# whole VPC. None are created in an existing VPC, or with
+# enable_nat_gateway = false: private subnets then have no internet route and
+# tasks that need egress (ECR, Secrets Manager, logs) must run in the public
+# subnets with a public IP.
 resource "aws_eip" "nat" {
   count  = local.nat_count
   domain = "vpc"
@@ -133,9 +151,12 @@ resource "aws_route_table" "private" {
   count  = local.create_vpc ? length(local.azs) : 0
   vpc_id = aws_vpc.main[0].id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = var.enable_multi_az_nat ? aws_nat_gateway.main[count.index].id : aws_nat_gateway.main[0].id
+  dynamic "route" {
+    for_each = var.enable_nat_gateway ? [1] : []
+    content {
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = var.enable_multi_az_nat ? aws_nat_gateway.main[count.index].id : aws_nat_gateway.main[0].id
+    }
   }
 
   tags = { Name = "${local.name_prefix}-private-rt-${local.azs[count.index]}" }

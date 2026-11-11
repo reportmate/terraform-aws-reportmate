@@ -1,10 +1,12 @@
 # Existing-VPC mode.
 #
-# When existing_vpc_id is set the module deploys into a VPC it does not own.
-# Everything here is additive: new subnets from the CIDRs the operator
-# reserved, plus one private and one public route table that only those new
-# subnets are associated with. Existing subnets, route tables, gateways and
-# the VPC itself are read, never changed.
+# When existing_vpc_id is set the module deploys into a VPC it does not own,
+# typically one a separate Terraform root runs for several applications. The
+# module creates no VPC, internet gateway or NAT gateway there. For each tier
+# it either uses subnets the VPC owner already made (existing_*_subnet_ids) or
+# creates its own from the CIDRs reserved for it (*_subnet_cidrs), with one
+# route table per created tier that only those subnets are associated with.
+# Existing subnets, route tables and gateways are read, never changed.
 
 data "aws_vpc" "existing" {
   count = local.create_vpc ? 0 : 1
@@ -12,24 +14,24 @@ data "aws_vpc" "existing" {
 
   lifecycle {
     precondition {
-      condition     = length(var.private_subnet_cidrs) >= 2 && length(var.public_subnet_cidrs) >= 2
-      error_message = "existing_vpc_id requires private_subnet_cidrs and public_subnet_cidrs, each mapping at least two availability zones to a CIDR."
+      condition     = (length(var.existing_private_subnet_ids) >= 2) != (length(var.private_subnet_cidrs) >= 2)
+      error_message = "existing_vpc_id needs private subnets from exactly one of existing_private_subnet_ids (at least two) or private_subnet_cidrs (at least two AZs)."
     }
 
     precondition {
-      condition     = toset(keys(var.private_subnet_cidrs)) == toset(keys(var.public_subnet_cidrs))
-      error_message = "private_subnet_cidrs and public_subnet_cidrs must cover the same availability zones."
+      condition     = (length(var.existing_public_subnet_ids) >= 2) != (length(var.public_subnet_cidrs) >= 2)
+      error_message = "existing_vpc_id needs public subnets from exactly one of existing_public_subnet_ids (at least two) or public_subnet_cidrs (at least two AZs)."
     }
 
     precondition {
-      condition     = var.existing_nat_gateway_id != null && var.existing_nat_gateway_id != ""
-      error_message = "existing_vpc_id requires existing_nat_gateway_id for private-subnet egress."
+      condition     = length(var.existing_private_subnet_ids) > 0 || (var.existing_nat_gateway_id != null && var.existing_nat_gateway_id != "")
+      error_message = "Creating private subnets in an existing VPC requires existing_nat_gateway_id for their egress route."
     }
   }
 }
 
 data "aws_internet_gateway" "existing" {
-  count = local.create_vpc ? 0 : 1
+  count = length(local.shared_public_cidrs) > 0 ? 1 : 0
 
   filter {
     name   = "attachment.vpc-id"
@@ -38,7 +40,7 @@ data "aws_internet_gateway" "existing" {
 }
 
 resource "aws_subnet" "shared_public" {
-  for_each = local.create_vpc ? {} : var.public_subnet_cidrs
+  for_each = local.shared_public_cidrs
 
   vpc_id                  = data.aws_vpc.existing[0].id
   cidr_block              = each.value
@@ -49,7 +51,7 @@ resource "aws_subnet" "shared_public" {
 }
 
 resource "aws_subnet" "shared_private" {
-  for_each = local.create_vpc ? {} : var.private_subnet_cidrs
+  for_each = local.shared_private_cidrs
 
   vpc_id            = data.aws_vpc.existing[0].id
   cidr_block        = each.value
@@ -59,7 +61,7 @@ resource "aws_subnet" "shared_private" {
 }
 
 resource "aws_route_table" "shared_public" {
-  count  = local.create_vpc ? 0 : 1
+  count  = length(local.shared_public_cidrs) > 0 ? 1 : 0
   vpc_id = data.aws_vpc.existing[0].id
 
   route {
@@ -77,7 +79,7 @@ resource "aws_route_table_association" "shared_public" {
 }
 
 resource "aws_route_table" "shared_private" {
-  count  = local.create_vpc ? 0 : 1
+  count  = length(local.shared_private_cidrs) > 0 ? 1 : 0
   vpc_id = data.aws_vpc.existing[0].id
 
   route {

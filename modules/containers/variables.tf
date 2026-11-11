@@ -121,8 +121,9 @@ variable "database_security_group_id" {
 }
 
 variable "public_api_url" {
-  description = "Public URL the browser uses to reach the API. Wired into the frontend as API_BASE_URL."
+  description = "Public URL the browser uses to reach the API. Wired into the frontend as API_BASE_URL. Empty in express mode uses the API's Express URL."
   type        = string
+  default     = ""
 }
 
 variable "demo_mode" {
@@ -282,4 +283,30 @@ variable "cdn_origin_restriction" {
   })
   default   = null
   sensitive = true
+}
+
+# --- Ingress mode ---
+
+variable "ingress_mode" {
+  description = "alb (module-owned ALB and ECS services) or express (ECS Express Mode services)"
+  type        = string
+  default     = "alb"
+}
+
+variable "infrastructure_role_arn" {
+  description = "ECS infrastructure role ARN, required for ingress_mode = express"
+  type        = string
+  default     = null
+}
+
+variable "tasks_in_public_subnets" {
+  description = "Run alb-mode ECS tasks in the public subnets with a public IP (no NAT needed). Express tasks always use the public subnets."
+  type        = bool
+  default     = false
+}
+
+variable "vpc_cidr_block" {
+  description = "VPC CIDR, allowed to reach the container ports in express mode (the AWS-managed load balancer lives in the VPC)"
+  type        = string
+  default     = ""
 }
