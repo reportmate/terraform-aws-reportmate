@@ -169,7 +169,6 @@ module "containers" {
   region       = var.region
 
   vpc_id             = module.networking.vpc_id
-  vpc_cidr_block     = module.networking.vpc_cidr_block
   public_subnet_ids  = module.networking.public_subnet_ids
   private_subnet_ids = module.networking.private_subnet_ids
 

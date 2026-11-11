@@ -304,9 +304,3 @@ variable "tasks_in_public_subnets" {
   type        = bool
   default     = false
 }
-
-variable "vpc_cidr_block" {
-  description = "VPC CIDR, allowed to reach the container ports in express mode (the AWS-managed load balancer lives in the VPC)"
-  type        = string
-  default     = ""
-}

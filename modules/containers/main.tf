@@ -742,14 +742,28 @@ moved {
 # these services always run in the public subnets. The load balancer, its
 # security group and its listener rules belong to AWS, not to this module.
 
-resource "aws_vpc_security_group_ingress_rule" "ecs_from_vpc" {
-  for_each          = local.express_mode ? toset(["3000", "8000"]) : toset([])
+# The Express-managed load balancer lives in the public subnets. Neither the
+# Express API nor the provider exposes that load balancer or its security
+# group, and its tags are not documented, so the container ports are opened
+# to the public subnets' CIDRs rather than to the load balancer's security
+# group. Never the whole VPC: other tenants' subnets get no path to the tasks.
+data "aws_subnet" "express_public" {
+  count = local.express_mode ? length(var.public_subnet_ids) : 0
+  id    = var.public_subnet_ids[count.index]
+}
+
+resource "aws_vpc_security_group_ingress_rule" "ecs_from_express_lb" {
+  for_each = local.express_mode ? {
+    for pair in setproduct(["3000", "8000"], range(length(var.public_subnet_ids))) :
+    "${pair[0]}-${pair[1]}" => { port = tonumber(pair[0]), index = pair[1] }
+  } : {}
+
   security_group_id = aws_security_group.ecs_tasks.id
-  cidr_ipv4         = var.vpc_cidr_block
-  from_port         = tonumber(each.value)
-  to_port           = tonumber(each.value)
+  cidr_ipv4         = data.aws_subnet.express_public[each.value.index].cidr_block
+  from_port         = each.value.port
+  to_port           = each.value.port
   ip_protocol       = "tcp"
-  description       = "Express Mode load balancer to container port ${each.value}"
+  description       = "Express Mode load balancer (public subnet) to container port ${each.value.port}"
 }
 
 resource "aws_ecs_express_gateway_service" "api" {

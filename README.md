@@ -95,6 +95,8 @@ Turning NAT off on an existing deployment can leave the old default route in the
 
 Express Mode has limits that the ALB mode does not:
 
+- **The API URL is public**: as with the ALB mode and the Azure Container Apps defaults, the API's own Express URL can be reached directly from the internet, not only through the frontend. The API must enforce its own authentication on every path (client passphrase for device submissions, the internal secret or OIDC bearer tokens for everything else), because nothing in front of it does.
+- **Task ingress by subnet**: AWS does not expose the managed load balancer's security group, so the module opens the container ports (3000, 8000) to the public subnets' CIDRs, where that load balancer runs, instead of to its security group. Anything else placed in those subnets can reach the containers directly.
 - **Public subnets only**: Express creates an internet-facing load balancer only for public subnets, and then gives the tasks public IPs, so these services always run there.
 - **No origin restriction**: the load balancer, its security group and its listener rules belong to AWS. The module cannot limit ingress to a CDN prefix list or check an origin header, so `cdn_origin_restriction` is rejected in this mode.
 - **No container health check**: Express sets the target-group health check (5-second timeout) and accepts no container-level health check. An API that is slow to open a database connection can fail it more readily than in ALB mode.
