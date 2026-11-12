@@ -88,6 +88,7 @@ module "storage" {
 
   project_name = var.project_name
   environment  = var.environment
+  bucket_name  = var.storage_bucket_name
 }
 
 # --- Auth ---
