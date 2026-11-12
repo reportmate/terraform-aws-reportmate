@@ -831,7 +831,8 @@ resource "aws_ecs_express_gateway_service" "frontend" {
   cpu                     = tostring(var.frontend_cpu)
   memory                  = tostring(var.frontend_memory)
   cpu_architecture        = var.cpu_architecture
-  health_check_path       = "/"
+  # "/" redirects to sign-in, which the load balancer counts as unhealthy.
+  health_check_path = "/api/healthz"
 
   primary_container {
     image          = "${aws_ecr_repository.frontend.repository_url}:${var.frontend_image_tag}"
