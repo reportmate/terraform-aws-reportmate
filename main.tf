@@ -129,11 +129,6 @@ module "identity" {
   ingress_mode = var.ingress_mode
   secret_arns  = concat(module.secrets.all_secret_arns, local.auth_secret_arns, local.extra_secret_arns)
 
-  ecr_repository_arns = [
-    module.containers.ecr_api_repository_url,
-    module.containers.ecr_frontend_repository_url,
-  ]
-
   log_group_arns = [
     "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/ecs/${var.project_name}-${var.environment}/*",
   ]
