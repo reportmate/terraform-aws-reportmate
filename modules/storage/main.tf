@@ -30,7 +30,7 @@ resource "aws_sqs_queue_redrive_policy" "ingest" {
 
 # S3 bucket for general storage (reports, exports, backups)
 resource "aws_s3_bucket" "main" {
-  bucket = "${local.name_prefix}-storage"
+  bucket = coalesce(var.bucket_name, "${local.name_prefix}-storage")
 
   tags = { Name = "${local.name_prefix}-storage" }
 }

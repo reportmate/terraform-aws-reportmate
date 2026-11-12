@@ -523,3 +523,9 @@ variable "demo_loop_api_url" {
   type        = string
   default     = ""
 }
+
+variable "storage_bucket_name" {
+  description = "Name for the storage bucket. S3 names are global, so a second deployment with the same project and environment needs its own. Null uses <project>-<environment>-storage."
+  type        = string
+  default     = null
+}
